@@ -1,28 +1,25 @@
-# Use an official Python runtime as a base image
+# For more information, please refer to https://aka.ms/vscode-docker-python
 FROM python:3.10-slim
 
-# Set the working directory in the container
-WORKDIR /M2
+EXPOSE 5002
 
-# Copy the requirements file into the container at /usr/src/app
-COPY requirements.txt ./
+# Keeps Python from generating .pyc files in the container
+ENV PYTHONDONTWRITEBYTECODE=1
 
-# Install any needed packages specified in requirements.txt
-#RUN pip install --no-cache-dir -r requirements.txt
+# Turns off buffering for easier container logging
+ENV PYTHONUNBUFFERED=1
 
 # Install pip requirements
 COPY requirements.txt .
 RUN python -m pip install -r requirements.txt
 
+WORKDIR /app
+COPY . /app
 
-# Copy the content of the local src directory to the working directory
-COPY . /M2
+# Creates a non-root user with an explicit UID and adds permission to access the /app folder
+# For more info, please refer to https://aka.ms/vscode-docker-python-configure-containers
+RUN adduser -u 5678 --disabled-password --gecos "" appuser && chown -R appuser /app
+USER appuser
 
-# Expose port 5000 for the Flask app to run on
-EXPOSE 5000
-
-# Define environment variable
-#ENV NAME World
-
-# Command to run the application
-CMD ["python", "./main.py"]
+# During debugging, this entry point will be overridden. For more information, please refer to https://aka.ms/vscode-docker-python-debug
+CMD ["gunicorn", "--bind", "0.0.0.0:5002", "main:app"]

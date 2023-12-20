@@ -1,9 +1,0 @@
-version: '3.7'
-services:
-  image:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    ports:
-      - "5000:5000"
-    # other configurations as needed
