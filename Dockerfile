@@ -1,5 +1,5 @@
 # For more information, please refer to https://aka.ms/vscode-docker-python
-FROM python:3.10-slim
+FROM python:3.11-slim
 
 EXPOSE 5002
 
@@ -9,12 +9,20 @@ ENV PYTHONDONTWRITEBYTECODE=1
 # Turns off buffering for easier container logging
 ENV PYTHONUNBUFFERED=1
 
+# Define environment variable for SQLite (if needed)
+#ENV SQLALCHEMY_DATABASE_URI sqlite:////data/mydatabase.db
+
 # Install pip requirements
-COPY requirements.txt .
-RUN python -m pip install -r requirements.txt
+#COPY requirements.txt .
 
 WORKDIR /app
 COPY . /app
+
+# RUN python -m pip install -r requirements.txt
+RUN python -m pip install -r requirements.txt
+
+
+
 
 # Creates a non-root user with an explicit UID and adds permission to access the /app folder
 # For more info, please refer to https://aka.ms/vscode-docker-python-configure-containers
