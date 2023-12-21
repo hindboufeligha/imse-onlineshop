@@ -19,9 +19,7 @@ engine = create_engine(
 )
 
 
-app.config[
-    "SQLALCHEMY_DATABASE_URI"
-] = "sqlite:///onlineshop_database.db"  # SQLite URI
+app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///onlineshop_database.db"  # SQLite URI
 # app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 db = SQLAlchemy(app)
