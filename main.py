@@ -2,6 +2,7 @@ from flask import Flask, render_template
 import random
 import sqlite3
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import create_engine
 from faker import Faker
 
 
@@ -11,6 +12,12 @@ app = Flask(__name__)
 # @app.route("/")
 # def index():
 # return render_template("index.html")
+
+# Create the database if it doesn't exist
+engine = create_engine(
+    "sqlite:////onlineshop_.db", echo=True, connect_args={"check_same_thread": False}
+)
+
 
 app.config[
     "SQLALCHEMY_DATABASE_URI"
@@ -53,5 +60,7 @@ def index():
 
 
 if __name__ == "__main__":
-    db.create_all()
+    with app.app_context():
+        db.create_all()
+
     app.run(debug=True)
