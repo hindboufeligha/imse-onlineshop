@@ -15,13 +15,13 @@ app = Flask(__name__)
 
 # Create the database if it doesn't exist
 engine = create_engine(
-    "sqlite:////onlineshop_.db", echo=True, connect_args={"check_same_thread": False}
+    "sqlite:///onlineshop_.db", echo=True, connect_args={"check_same_thread": False}
 )
 
 
 app.config[
     "SQLALCHEMY_DATABASE_URI"
-] = "sqlite:////onlineshop_database.db"  # SQLite URI
+] = "sqlite:///onlineshop_database.db"  # SQLite URI
 # app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 db = SQLAlchemy(app)
