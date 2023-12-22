@@ -213,11 +213,30 @@ def index():
                 lower_case=True,
             ),
         )
+
+        # gnerate 1-2 random address for each customer:
+        for _ in range(fake.random_int(min=1, max=2)):
+            new_address = AddressTable(
+                address_title=fake.random_element(elements=("Home", "Office", "Other")),
+                street_name=fake.street_address(),
+                house_no=fake.building_number(),
+                floor_no=fake.random_int(min=1, max=10),
+                appartment_no=fake.random_int(min=1, max=10),
+                city=fake.city(),
+                postalcode=fake.postcode(),
+                country="Austria",
+            )
+
+            # add this new address to the addresses list of this customer:
+            new_customer.addresses.append(new_address)
+
+        # add this new customer to the DB
         db.session.add(new_customer)
 
+    # commit changes to the DB:
     db.session.commit()
 
-    # Fetch and display data
+    # Fetch and display data:
     customers = CustomerTable.query.all()
     return render_template("index.html", customers=customers)
 
