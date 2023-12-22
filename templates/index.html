@@ -4,12 +4,44 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <!-- <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">-->
     <title>Online Shop</title>
 </head>
 
-<body>
+<!--<body>
     <h1>Hello, This is M2 TEST.</h1>
+</body> -->
+
+<body>
+    <h1>All Customers Data</h1>
+    <table border="1">
+        <thead>
+            <tr>
+                <th>Customer ID</th>
+                <th>First Name</th>
+                <th>Family Name</th>
+                <th>Email</th>
+                <th>Phone Number</th>
+                <th>Username</th>
+                <th>Password</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for customer in customers %}
+            <tr>
+                <td>{{ customer.customer_id }}</td>
+                <td>{{ customer.firstname }}</td>
+                <td>{{ customer.familyname }}</td>
+                <td>{{ customer.email }}</td>
+                <td>{{ customer.phone_no }}</td>
+                <td>{{ customer.username }}</td>
+                <td>{{ customer.password }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
 </body>
+
+
 
 </html>
