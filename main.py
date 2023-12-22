@@ -1,7 +1,9 @@
 from flask import Flask, render_template
 import random
 import sqlite3
-from flask_sqlalchemy import SQLAlchemy
+from flask_sqlalchemy import (
+    SQLAlchemy,
+)  # to define the tables, relationships, and associations in our Online Shop Web Application.
 from sqlalchemy import create_engine
 from faker import Faker
 from datetime import datetime
@@ -66,11 +68,11 @@ class CustomerTable(db.Model):
 class AddressTable(db.Model):
     __tablename__ = "address_table"
     address_id = db.Column(db.Integer, primary_key=True)
-    address_title = db.Column(db.String(255))
-    street_name = db.Column(db.String(255))  # home / office / other
+    address_title = db.Column(db.String(255))  # home / office / other
+    street_name = db.Column(db.String(255))
     house_no = db.Column(db.String(255))
-    floor_no = db.Column(db.String(255))  # optional
-    appartment_no = db.Column(db.String(255))  # optional
+    floor_no = db.Column(db.String(255))
+    appartment_no = db.Column(db.String(255))
     city = db.Column(db.String(12))
     postalcode = db.Column(db.String(12))
     country = db.Column(db.String(12))
