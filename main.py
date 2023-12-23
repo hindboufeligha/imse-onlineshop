@@ -92,12 +92,6 @@ class ProductTable(db.Model):
     p_size_variation = db.Column(db.String(255))
 
     reviews = db.relationship("ReviewTable", backref="product", lazy=True)
-    customers = db.relationship(
-        "CustomerTable",
-        secondary=customer_product_association,
-        backref="associated_products",
-        lazy=True,
-    )
 
     category_id = db.Column(
         db.Integer, db.ForeignKey("category_table.category_id"), nullable=False
@@ -193,8 +187,7 @@ class WishlistTable(db.Model):
     )
 
 
-@app.route("/")
-def index():
+def generate_data():
     # Insert random data into the database
     # fake = Faker()
     fake = Faker(["de_AT"])  # generate data in Austrian Deutsch
@@ -236,6 +229,11 @@ def index():
     # commit changes to the DB:
     db.session.commit()
 
+
+@app.route("/")
+def index():
+    # generate data:
+    generate_data()
     # Fetch and display data:
     customers = CustomerTable.query.all()
     return render_template("index.html", customers=customers)
