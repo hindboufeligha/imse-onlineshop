@@ -97,6 +97,7 @@ class ProductTable(db.Model):
     p_gender = db.Column(db.String(255))
     p_size_variation = db.Column(db.String(255))
     p_image_url = db.Column(db.String(255))
+    p_quantity = db.Column(db.Integer)
 
     reviews = db.relationship("ReviewTable", backref="product", lazy=True)
 
@@ -227,6 +228,7 @@ def generate_products():
     fake = Faker(["de_AT"])
     gender = random.choice(["Male", "Female", "Children"])
     size_variation = random.choice([True, False])
+    quantity = random.randint(1, 100)
 
     Faker(["de_AT"])
     # fake.add_provider(ProductImageProvider)
@@ -251,6 +253,7 @@ def generate_products():
             p_size_variation=size_variation,
             category_id=subcategory.category_id,
             p_image_url=image_url,
+            p_quantity=quantity,
         )
 
         return product
