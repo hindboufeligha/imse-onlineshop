@@ -9,6 +9,9 @@ from sqlalchemy.sql import func
 from sqlalchemy.orm import aliased
 from sqlalchemy.orm import Session
 from faker import Faker
+from faker.providers import (
+    BaseProvider,
+)  # to create a custom provider for Faker to generate random Image URLs
 from datetime import datetime
 
 app = Flask(__name__)
@@ -93,6 +96,7 @@ class ProductTable(db.Model):
     p_price = db.Column(db.String(255))
     p_gender = db.Column(db.String(255))
     p_size_variation = db.Column(db.String(255))
+    p_image_url = db.Column(db.String(255))
 
     reviews = db.relationship("ReviewTable", backref="product", lazy=True)
 
@@ -213,11 +217,23 @@ def organize_categories(categories):
         db.session.commit()
 
 
+# DID NOT WORK: class ProductImageProvider(BaseProvider):
+# def p_image_url_generate(self, width=300, height=200, category="fashion"):
+# return f"https://lorempixel.com/{width}/{height}/{category}/"
+
+
 # FUNC: generate a product
 def generate_products():
     fake = Faker(["de_AT"])
     gender = random.choice(["Male", "Female", "Children"])
     size_variation = random.choice([True, False])
+
+    Faker(["de_AT"])
+    # fake.add_provider(ProductImageProvider)
+    # image_url = fake.p_image_url_generate()
+    # print(p_image_url)
+
+    image_url = "https://www.powerreviews.com/wp-content/uploads/2022/07/wardrobe-22-2048x1376.png"
 
     # make sure to assign products a subcategory:
     subcategory = (
@@ -234,6 +250,7 @@ def generate_products():
             p_gender=gender,
             p_size_variation=size_variation,
             category_id=subcategory.category_id,
+            p_image_url=image_url,
         )
 
         return product
@@ -243,16 +260,32 @@ def generate_products():
         return None
 
 
+# FUNC: randomly add products to wishlists
+def random_add_products_to_wishlists():
+    # fetch all products and wishlists from DB:
+    products = ProductTable.query.all()
+    wishlists = WishlistTable.query.all()
+
+    # loop through a subset of wishlists and randomly add products to them
+    for wishlist in random.sample(wishlists, min(len(wishlists), 2)):
+        # number of products to be added to the wishlist:
+        num = random.randint(1, min(len(products), 2))
+        # add products to each wishlist
+        wishlist.products.extend(random.sample(products, num))
+
+    db.session.commit()
+
+
 def generate_data():
     # 1: Insert random data of Customers into the DB:
-    # fake = Faker()
     fake = Faker(["de_AT"])  # generate data in Austrian Deutsch
     for _ in range(10):  # 10 customers
         new_customer = CustomerTable(
             firstname=fake.first_name(),
             familyname=fake.last_name(),
             email=fake.email(),
-            phone_no=fake.phone_number(),
+            # phone_no=fake.phone_number(),
+            phone_no=fake.numerify(text="+43 ###########"),
             username=fake.user_name(),
             password=fake.password(
                 length=8,
@@ -263,7 +296,7 @@ def generate_data():
             ),
         )
 
-        # gnerate 1-2 random address for each customer:
+        # generate 1-2 random address for each customer:
         for _ in range(fake.random_int(min=1, max=2)):
             new_address = AddressTable(
                 address_title=fake.random_element(elements=("Home", "Office", "Other")),
@@ -278,6 +311,15 @@ def generate_data():
 
             # add this new address to the addresses list of this customer:
             new_customer.addresses.append(new_address)
+
+        # generate 1-2 random wishlists for each customer:
+        for _ in range(fake.random_int(min=1, max=2)):
+            new_wishlist = WishlistTable(
+                wishlist_name=fake.word(),
+            )
+
+            # add this new address to the addresses list of this customer:
+            new_customer.wishlists.append(new_wishlist)
 
         # add this new customer to the DB
         db.session.add(new_customer)
@@ -316,7 +358,10 @@ def generate_data():
                 new_product.category_id = category_id
                 db.session.add(new_product)
 
-    # 4: commit ALL changes to the DB:
+    # 4: Generate a 1-2 wishlists for each Customer: relationships: 1:N with Customer / N:N with Product
+    random_add_products_to_wishlists()
+
+    # 5: commit ALL changes to the DB:
     db.session.commit()
 
 
@@ -347,11 +392,23 @@ def index():
         )
         .all()
     )
-    # Print the results
     for product, subcategory_name, parent_category_name in products_with_categories:
         print(
             f"Product: {product.p_name}, Subcategory: {subcategory_name}, Parent Category: {parent_category_name}"
         )
+
+    # TEST:
+    # wishlist = WishlistTable.query.first()
+    # print(f"Wishlist ID: {wishlist.wishlist_id}, Name: {wishlist.wishlist_name}")
+    # print("Associated Products:")
+    # for product in wishlist.products:
+    # print(f" Product ID: {product.p_id}, Name:{product.p_name}")
+
+    # product = ProductTable.query.first()
+    # print(f"\n\nProduct ID: {product.p_id}, Name: {product.p_name}")
+    # print("Associated Wishlists:")
+    # for wishlist in product.wishlists:
+    # print(f" Wishlist ID: {wishlist.wishlist_id}, Name:{wishlist.wishlist_name}")
 
     return render_template("index.html", customers=customers)
 
