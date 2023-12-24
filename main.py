@@ -5,6 +5,9 @@ from flask_sqlalchemy import (
     SQLAlchemy,
 )  # to define the tables, relationships, and associations in our Online Shop Web Application.
 from sqlalchemy import create_engine
+from sqlalchemy.sql import func
+from sqlalchemy.orm import aliased
+from sqlalchemy.orm import Session
 from faker import Faker
 from datetime import datetime
 
@@ -104,7 +107,8 @@ class CategoryTable(db.Model):
     __tablename__ = "category_table"
     category_id = db.Column(db.Integer, primary_key=True)
     category_name = db.Column(db.String(50), nullable=False)
-    description = db.Column(db.Text)
+    # description = db.Column(db.Text)  # REMOVED
+
     parent_category_id = db.Column(
         db.Integer, db.ForeignKey("category_table.category_id")
     )
@@ -187,11 +191,63 @@ class WishlistTable(db.Model):
     )
 
 
+# FUNC: organize categories into parent/sub-categories
+def organize_categories(categories):
+    # define a dic to keep track of parent categories using their names, to store already created parent categories in order to avoid unnecessary DB queries.
+    category_objects = {}
+
+    for category_name, parent_category_name in categories:
+        # First, Check if the parent category exists:
+        parent_category = category_objects.get(parent_category_name)
+        if not parent_category:  # parent_category does not exist yet
+            parent_category = CategoryTable(category_name=parent_category_name)
+            db.session.add(parent_category)
+            db.session.commit()
+            category_objects[parent_category_name] = parent_category
+
+        # Then, Create sub-category
+        subcategory = CategoryTable(
+            category_name=category_name, parent_category_id=parent_category.category_id
+        )
+        db.session.add(subcategory)
+        db.session.commit()
+
+
+# FUNC: generate a product
+def generate_products():
+    fake = Faker(["de_AT"])
+    gender = random.choice(["Male", "Female", "Children"])
+    size_variation = random.choice([True, False])
+
+    # make sure to assign products a subcategory:
+    subcategory = (
+        CategoryTable.query.filter(CategoryTable.parent_category_id.isnot(None))
+        .order_by(func.random())
+        .first()
+    )
+
+    if subcategory:
+        product = ProductTable(
+            p_name=fake.word(),
+            p_description=fake.sentence(),
+            p_price=round(random.uniform(10, 1000), 2),
+            p_gender=gender,
+            p_size_variation=size_variation,
+            category_id=subcategory.category_id,
+        )
+
+        return product
+
+    else:  # if there are no sub-categories:
+        print("No sub-category available! Skip the product creation in this iteration.")
+        return None
+
+
 def generate_data():
-    # Insert random data into the database
+    # 1: Insert random data of Customers into the DB:
     # fake = Faker()
     fake = Faker(["de_AT"])  # generate data in Austrian Deutsch
-    for _ in range(10):  # 10 records
+    for _ in range(10):  # 10 customers
         new_customer = CustomerTable(
             firstname=fake.first_name(),
             familyname=fake.last_name(),
@@ -226,7 +282,41 @@ def generate_data():
         # add this new customer to the DB
         db.session.add(new_customer)
 
-    # commit changes to the DB:
+    # 2: Insert Categories:
+    # List of Categories and Sub-categories:
+    categories_list = [
+        ("Shirts", "Clothing"),
+        ("Jeans", "Clothing"),
+        ("Pyjamas", "Clothing"),
+        ("Jackets & Coats", "Clothing"),
+        ("Hoodies", "Clothing"),
+        ("Sneakers", "Shoes"),
+        ("Boots", "Shoes"),
+        ("Jewellery", "Accessories"),
+        ("Bags", "Accessories"),
+        # instead add Children as a gender option
+        # ("Clothing for Children", "Clothing"),
+        # ("Shoes for Children", "Children"),
+        # ("Accessories for Children", "Children"),
+    ]
+    organize_categories(categories_list)
+
+    # 3: Generate 10 Products:
+    for _ in range(10):  # 10 products
+        new_product = generate_products()
+        if (
+            new_product is not None
+        ):  # check first is the product is created (assigned a sub-category)
+            # add this new product to the DB
+            # then, check if the category with the (randomly) generated ID, exists in Category table and then assign the category to the product:
+            category_id = new_product.category_id
+            category = CategoryTable.query.get(category_id)
+
+            if category:
+                new_product.category_id = category_id
+                db.session.add(new_product)
+
+    # 4: commit ALL changes to the DB:
     db.session.commit()
 
 
@@ -236,6 +326,33 @@ def index():
     generate_data()
     # Fetch and display data:
     customers = CustomerTable.query.all()
+
+    # TEST:
+    # Output generated products with their subcategories + parent categories.
+    # Aliases for self-joins on CategoryTable
+    Subcategory = aliased(CategoryTable)
+    ParentCategory = aliased(CategoryTable)
+    # Query products with their categories and parent categories
+    products_with_categories = (
+        db.session.query(
+            ProductTable,
+            CategoryTable.category_name.label("category_name"),
+            Subcategory.category_name.label("parent_category_name"),
+        )
+        .join(CategoryTable, ProductTable.category_id == CategoryTable.category_id)
+        .join(
+            Subcategory,
+            CategoryTable.parent_category_id == Subcategory.category_id,
+            isouter=True,
+        )
+        .all()
+    )
+    # Print the results
+    for product, subcategory_name, parent_category_name in products_with_categories:
+        print(
+            f"Product: {product.p_name}, Subcategory: {subcategory_name}, Parent Category: {parent_category_name}"
+        )
+
     return render_template("index.html", customers=customers)
 
 
