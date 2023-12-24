@@ -261,7 +261,7 @@ def generate_products():
 
 
 # FUNC: randomly add products to wishlists
-def random_add_products_to_wishlists():
+def randomly_add_products_to_wishlists():
     # fetch all products and wishlists from DB:
     products = ProductTable.query.all()
     wishlists = WishlistTable.query.all()
@@ -274,6 +274,22 @@ def random_add_products_to_wishlists():
         wishlist.products.extend(random.sample(products, num))
 
     db.session.commit()
+
+
+# FUNC: randonly associate customers with products (means that the customer has already bought this/those product(s))
+def randomly_associate_customers_with_products():
+    # fetch all customers and products from DB
+    customers = CustomerTable.query.all()
+    products = ProductTable.query.all()
+
+    # loop through a subset of customers and randomly associate them with some products
+    for customer in random.sample(customers, min(len(customers), 2)):
+        # number of products to be added to the wishlist:
+        num = random.randint(1, min(len(products), 2))
+        # add products to each wishlist
+        customer.products.extend(random.sample(products, num))
+
+    db.session.commit
 
 
 def generate_data():
@@ -359,9 +375,12 @@ def generate_data():
                 db.session.add(new_product)
 
     # 4: Generate a 1-2 wishlists for each Customer: relationships: 1:N with Customer / N:N with Product
-    random_add_products_to_wishlists()
+    randomly_add_products_to_wishlists()
 
-    # 5: commit ALL changes to the DB:
+    # 5: Associate some customers with some products (means these customers have already bought this/those product(s))
+    randomly_associate_customers_with_products()
+
+    # 6: commit ALL changes to the DB:
     db.session.commit()
 
 
