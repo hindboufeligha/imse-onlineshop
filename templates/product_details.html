@@ -1,0 +1,51 @@
+<!-- templates/product_detail.html -->
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ product.p_name }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='product_details.css') }}">
+</head>
+
+<body>
+
+    <header>
+        <h1>{{ product.p_name }}</h1>
+    </header>
+
+    <div class="container">
+        <div class="product">
+            <img src="{{ product.p_image_url }}" alt="{{ product.p_name }}">
+            <h2>{{ product.p_name }}</h2>
+            <p>Product Description: {{ product.p_description }}</p>
+            <p>Price: ${{ product.p_price }}</p>
+            {% if product.p_size_variation == 1 %}
+            <button>Choose Size</button>
+            {% endif %}
+
+            <div class="add">
+                <form method="post" action="{{ url_for('add_to_cart', product_id=product.p_id) }}">
+                    <button type="submit">Add to Cart</button>
+                </form>
+            </div>
+
+            <div class="add">
+                <form method="post" action="{{ url_for('add_to_wishlist', product_id=product.p_id) }}">
+                    <button type="submit">Add to Wishlist</button>
+                </form>
+            </div>
+
+
+            <a href="{{ url_for('product_details') }}">Back to Home</a>
+        </div>
+
+
+    </div>
+
+
+
+</body>
+
+</html>

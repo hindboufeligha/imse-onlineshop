@@ -1,4 +1,4 @@
-from flask import Flask, render_template
+from flask import Flask, render_template, request, redirect, url_for
 import random
 import sqlite3
 from flask_sqlalchemy import (
@@ -385,6 +385,26 @@ def generate_data():
 
     # 6: commit ALL changes to the DB:
     db.session.commit()
+
+
+@app.route("/add_to_cart/<int:product_id>", methods=["POST"])
+def add_to_cart(product_id):
+    # for now just print a message:
+    print("Added to Cart Successfully!")
+    return redirect(url_for("product_details"))
+
+
+@app.route("/add_to_wishlist/<int:product_id>", methods=["POST"])
+def add_to_wishlist(product_id):
+    # for now just print a message:
+    print("Added to Wishlist Successfully!")
+    return redirect(url_for("product_details"))
+
+
+@app.route("/")
+def product_details():
+    product = ProductTable.query.get(3)
+    return render_template("product_details.html", product=product)
 
 
 @app.route("/")
