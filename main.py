@@ -13,404 +13,17 @@ from faker.providers import (
     BaseProvider,
 )  # to create a custom provider for Faker to generate random Image URLs
 from datetime import datetime
+from lib.init_database_functions import *
 
-app = Flask(__name__)
+app = create_app()
 
 
-# @app.route("/")
-# def index():
-# return render_template("index.html")
+create_database(app)
+initialize_tables(app)
 
-# Create the database if it doesn't exist
-engine = create_engine(
-    "sqlite:///onlineshop_.db", echo=True, connect_args={"check_same_thread": False}
-)
 
-
-app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///onlineshop_.db"  # SQLite URI
-# app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-
-db = SQLAlchemy(app)
-
-
-# Join table for N:M relationship between Customers and Products
-customer_product_association = db.Table(
-    "customer_product_association",
-    db.Column("customerID", db.Integer, db.ForeignKey("customer_table.customer_id")),
-    db.Column("productID", db.Integer, db.ForeignKey("product_table.p_id")),
-)
-
-# association table for Wishlist and Product
-wishlist_product_association = db.Table(
-    "wishlist_product_association",
-    db.Column("wishlistID", db.Integer, db.ForeignKey("wishlist_table.wishlist_id")),
-    db.Column("productID", db.Integer, db.ForeignKey("product_table.p_id")),
-)
-
-
-class CustomerTable(db.Model):
-    __tablename__ = "customer_table"
-    customer_id = db.Column(db.Integer, primary_key=True)
-    firstname = db.Column(db.String(255))
-    familyname = db.Column(db.String(255))
-    email = db.Column(db.String(255))
-    phone_no = db.Column(db.String(255))
-    username = db.Column(db.String(255))
-    password = db.Column(db.String(12))
-
-    products = db.relationship(
-        "ProductTable",
-        secondary=customer_product_association,
-        backref="associated_customers",
-        lazy=True,
-    )
-
-    addresses = db.relationship("AddressTable", backref="customer", lazy=True)
-    reviews = db.relationship("ReviewTable", backref="customer", lazy=True)
-    wishlists = db.relationship("WishlistTable", backref="customer", lazy=True)
-    carts = db.relationship("CartTable", backref="customer", lazy=True)
-
-
-class AddressTable(db.Model):
-    __tablename__ = "address_table"
-    address_id = db.Column(db.Integer, primary_key=True)
-    address_title = db.Column(db.String(255))  # home / office / other
-    street_name = db.Column(db.String(255))
-    house_no = db.Column(db.String(255))
-    floor_no = db.Column(db.String(255))
-    appartment_no = db.Column(db.String(255))
-    city = db.Column(db.String(12))
-    postalcode = db.Column(db.String(12))
-    country = db.Column(db.String(12))
-
-    customer_id = db.Column(
-        db.Integer, db.ForeignKey("customer_table.customer_id"), nullable=False
-    )
-
-
-class ProductTable(db.Model):
-    __tablename__ = "product_table"
-    p_id = db.Column(db.Integer, primary_key=True)
-    p_name = db.Column(db.String(255))
-    p_description = db.Column(db.String(255))
-    p_price = db.Column(db.String(255))
-    p_gender = db.Column(db.String(255))
-    p_size_variation = db.Column(db.String(255))
-    p_image_url = db.Column(db.String(255))
-    p_quantity = db.Column(db.Integer)
-
-    reviews = db.relationship("ReviewTable", backref="product", lazy=True)
-
-    category_id = db.Column(
-        db.Integer, db.ForeignKey("category_table.category_id"), nullable=False
-    )
-
-    cart_items = db.relationship("CartItemTable", backref="product", lazy=True)
-
-
-class CategoryTable(db.Model):
-    __tablename__ = "category_table"
-    category_id = db.Column(db.Integer, primary_key=True)
-    category_name = db.Column(db.String(50), nullable=False)
-    # description = db.Column(db.Text)  # REMOVED
-
-    parent_category_id = db.Column(
-        db.Integer, db.ForeignKey("category_table.category_id")
-    )
-
-    subcategories = db.relationship(
-        "CategoryTable",
-        backref=db.backref("parent_category", remote_side=[category_id]),
-    )
-    products = db.relationship("ProductTable", backref="category", lazy=True)
-
-
-class CartTable(db.Model):
-    __tablename__ = "cart_table"
-    cart_id = db.Column(db.Integer, primary_key=True)
-    status = db.Column(db.String(20), nullable=False)
-    creation_date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
-
-    customer_id = db.Column(
-        db.Integer, db.ForeignKey("customer_table.customer_id"), nullable=False
-    )
-
-    cart_items = db.relationship("CartItemTable", backref="cart", lazy=True)
-    payment = db.relationship("PaymentTable", backref="cart", uselist=False)
-
-
-class CartItemTable(db.Model):
-    __tablename__ = "cartitem_table"
-    cart_item_id = db.Column(db.Integer, primary_key=True)
-    size = db.Column(db.String(10))
-    quantity = db.Column(db.Integer, nullable=False)
-
-    cart_id = db.Column(db.Integer, db.ForeignKey("cart_table.cart_id"), nullable=False)
-    product_id = db.Column(
-        db.Integer, db.ForeignKey("product_table.p_id"), nullable=False
-    )
-
-
-class PaymentTable(db.Model):  # 1:1 with Cart
-    __tablename__ = "payment_table"
-    payment_id = db.Column(db.Integer, primary_key=True)
-    payment_method = db.Column(db.String(50), nullable=False)
-    total_cost = db.Column(db.Float, nullable=False)
-    payment_date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
-
-    cart_id = db.Column(
-        db.Integer, db.ForeignKey("cart_table.cart_id"), unique=True, nullable=False
-    )
-
-
-class ReviewTable(db.Model):
-    __tablename__ = "review_table"
-    ReviewID = db.Column(db.Integer, primary_key=True)
-    description = db.Column(db.Text)
-    rating = db.Column(db.Float, nullable=False)
-    post_date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
-
-    customer_id = db.Column(
-        db.Integer, db.ForeignKey("customer_table.customer_id"), nullable=False
-    )
-
-    product_id = db.Column(
-        db.Integer, db.ForeignKey("product_table.p_id"), nullable=False
-    )
-
-
-class WishlistTable(db.Model):
-    __tablename__ = "wishlist_table"
-    wishlist_id = db.Column(db.Integer, primary_key=True)
-    wishlist_name = db.Column(db.String(50), nullable=False)
-
-    customer_id = db.Column(
-        db.Integer, db.ForeignKey("customer_table.customer_id"), nullable=False
-    )
-
-    products = db.relationship(
-        "ProductTable",
-        secondary=wishlist_product_association,
-        backref="wishlists",
-        lazy=True,
-    )
-
-
-# FUNC: organize categories into parent/sub-categories
-def organize_categories(categories):
-    # define a dic to keep track of parent categories using their names, to store already created parent categories in order to avoid unnecessary DB queries.
-    category_objects = {}
-
-    for category_name, parent_category_name in categories:
-        # First, Check if the parent category exists:
-        parent_category = category_objects.get(parent_category_name)
-        if not parent_category:  # parent_category does not exist yet
-            parent_category = CategoryTable(category_name=parent_category_name)
-            db.session.add(parent_category)
-            db.session.commit()
-            category_objects[parent_category_name] = parent_category
-
-        # Then, Create sub-category
-        subcategory = CategoryTable(
-            category_name=category_name, parent_category_id=parent_category.category_id
-        )
-        db.session.add(subcategory)
-        db.session.commit()
-
-
-# DID NOT WORK: class ProductImageProvider(BaseProvider):
-# def p_image_url_generate(self, width=300, height=200, category="fashion"):
-# return f"https://lorempixel.com/{width}/{height}/{category}/"
-
-
-# FUNC: generate a product
-def generate_products():
-    fake = Faker(["de_AT"])
-    gender = random.choice(["Male", "Female", "Children"])
-    size_variation = random.choice([True, False])
-    quantity = random.randint(1, 100)
-
-    Faker(["de_AT"])
-    # fake.add_provider(ProductImageProvider)
-    # image_url = fake.p_image_url_generate()
-    # print(p_image_url)
-
-    image_url = "https://www.powerreviews.com/wp-content/uploads/2022/07/wardrobe-22-2048x1376.png"
-
-    # make sure to assign products a subcategory:
-    subcategory = (
-        CategoryTable.query.filter(CategoryTable.parent_category_id.isnot(None))
-        .order_by(func.random())
-        .first()
-    )
-
-    if subcategory:
-        product = ProductTable(
-            p_name=fake.word(),
-            p_description=fake.sentence(),
-            p_price=round(random.uniform(10, 1000), 2),
-            p_gender=gender,
-            p_size_variation=size_variation,
-            category_id=subcategory.category_id,
-            p_image_url=image_url,
-            p_quantity=quantity,
-        )
-
-        return product
-
-    else:  # if there are no sub-categories:
-        print("No sub-category available! Skip the product creation in this iteration.")
-        return None
-
-
-# FUNC: randomly add products to wishlists
-def randomly_add_products_to_wishlists():
-    # fetch all products and wishlists from DB:
-    products = ProductTable.query.all()
-    wishlists = WishlistTable.query.all()
-
-    # loop through a subset of wishlists and randomly add products to them
-    for wishlist in random.sample(wishlists, min(len(wishlists), 2)):
-        # number of products to be added to the wishlist:
-        num = random.randint(1, min(len(products), 2))
-        # add products to each wishlist
-        wishlist.products.extend(random.sample(products, num))
-
-    db.session.commit()
-
-
-# FUNC: randonly associate customers with products (means that the customer has already bought this/those product(s))
-def randomly_associate_customers_with_products():
-    # fetch all customers and products from DB
-    customers = CustomerTable.query.all()
-    products = ProductTable.query.all()
-
-    # loop through a subset of customers and randomly associate them with some products
-    for customer in random.sample(customers, min(len(customers), 2)):
-        # number of products to be added to the wishlist:
-        num = random.randint(1, min(len(products), 2))
-        # add products to each wishlist
-        customer.products.extend(random.sample(products, num))
-
-    db.session.commit
-
-
-def generate_data():
-    # 1: Insert random data of Customers into the DB:
-    fake = Faker(["de_AT"])  # generate data in Austrian Deutsch
-    for _ in range(10):  # 10 customers
-        new_customer = CustomerTable(
-            firstname=fake.first_name(),
-            familyname=fake.last_name(),
-            email=fake.email(),
-            # phone_no=fake.phone_number(),
-            phone_no=fake.numerify(text="+43 ###########"),
-            username=fake.user_name(),
-            password=fake.password(
-                length=8,
-                special_chars=True,
-                digits=True,
-                upper_case=True,
-                lower_case=True,
-            ),
-        )
-
-        # generate 1-2 random address for each customer:
-        for _ in range(fake.random_int(min=1, max=2)):
-            new_address = AddressTable(
-                address_title=fake.random_element(elements=("Home", "Office", "Other")),
-                street_name=fake.street_address(),
-                house_no=fake.building_number(),
-                floor_no=fake.random_int(min=1, max=10),
-                appartment_no=fake.random_int(min=1, max=10),
-                city=fake.city(),
-                postalcode=fake.postcode(),
-                country="Austria",
-            )
-
-            # add this new address to the addresses list of this customer:
-            new_customer.addresses.append(new_address)
-
-        # generate 1-2 random wishlists for each customer:
-        for _ in range(fake.random_int(min=1, max=2)):
-            new_wishlist = WishlistTable(
-                wishlist_name=fake.word(),
-            )
-
-            # add this new address to the addresses list of this customer:
-            new_customer.wishlists.append(new_wishlist)
-
-        # add this new customer to the DB
-        db.session.add(new_customer)
-
-    # 2: Insert Categories:
-    # List of Categories and Sub-categories:
-    categories_list = [
-        ("Shirts", "Clothing"),
-        ("Jeans", "Clothing"),
-        ("Pyjamas", "Clothing"),
-        ("Jackets & Coats", "Clothing"),
-        ("Hoodies", "Clothing"),
-        ("Sneakers", "Shoes"),
-        ("Boots", "Shoes"),
-        ("Jewellery", "Accessories"),
-        ("Bags", "Accessories"),
-        # instead add Children as a gender option
-        # ("Clothing for Children", "Clothing"),
-        # ("Shoes for Children", "Children"),
-        # ("Accessories for Children", "Children"),
-    ]
-    organize_categories(categories_list)
-
-    # 3: Generate 10 Products:
-    for _ in range(10):  # 10 products
-        new_product = generate_products()
-        if (
-            new_product is not None
-        ):  # check first is the product is created (assigned a sub-category)
-            # add this new product to the DB
-            # then, check if the category with the (randomly) generated ID, exists in Category table and then assign the category to the product:
-            category_id = new_product.category_id
-            category = CategoryTable.query.get(category_id)
-
-            if category:
-                new_product.category_id = category_id
-                db.session.add(new_product)
-
-    # 4: Generate a 1-2 wishlists for each Customer: relationships: 1:N with Customer / N:N with Product
-    randomly_add_products_to_wishlists()
-
-    # 5: Associate some customers with some products (means these customers have already bought this/those product(s))
-    randomly_associate_customers_with_products()
-
-    # 6: commit ALL changes to the DB:
-    db.session.commit()
-
-
-@app.route("/add_to_cart/<int:product_id>", methods=["POST"])
-def add_to_cart(product_id):
-    # for now just print a message:
-    print("Added to Cart Successfully!")
-    return redirect(url_for("product_details"))
-
-
-@app.route("/add_to_wishlist/<int:product_id>", methods=["POST"])
-def add_to_wishlist(product_id):
-    # for now just print a message:
-    print("Added to Wishlist Successfully!")
-    return redirect(url_for("product_details"))
-
-
-@app.route("/")
-def product_details():
-    product = ProductTable.query.get(3)
-    return render_template("product_details.html", product=product)
-
-
-@app.route("/")
-def index():
-    # generate data:
-    generate_data()
+@app.route("/hh")
+def indexxx():
     # Fetch and display data:
     customers = CustomerTable.query.all()
 
@@ -439,24 +52,81 @@ def index():
             f"Product: {product.p_name}, Subcategory: {subcategory_name}, Parent Category: {parent_category_name}"
         )
 
-    # TEST:
-    # wishlist = WishlistTable.query.first()
-    # print(f"Wishlist ID: {wishlist.wishlist_id}, Name: {wishlist.wishlist_name}")
-    # print("Associated Products:")
-    # for product in wishlist.products:
-    # print(f" Product ID: {product.p_id}, Name:{product.p_name}")
-
-    # product = ProductTable.query.first()
-    # print(f"\n\nProduct ID: {product.p_id}, Name: {product.p_name}")
-    # print("Associated Wishlists:")
-    # for wishlist in product.wishlists:
-    # print(f" Wishlist ID: {wishlist.wishlist_id}, Name:{wishlist.wishlist_name}")
-
     return render_template("index.html", customers=customers)
 
 
-if __name__ == "__main__":
-    with app.app_context():
-        db.create_all()
+@app.route("/fill_database", methods=["POST"])
+def fill_database():
+    initialize_tables(app)
+    # Redirect to the index page
+    return redirect(url_for("DB_operation"))
 
+
+# Route to empty the database
+@app.route("/empty_database", methods=["POST"])
+def empty_database():
+    # Delete all data from the customer_table
+    db.session.query(CustomerTable).delete()
+    db.session.commit()
+
+    # Redirect to the index page
+    return redirect(url_for("DB_operation"))
+
+
+@app.route("/add-review")
+def add_review():
+    return render_template("add-review.html")
+
+
+# Route to display login page
+@app.route("/login", methods=["GET"])
+def show_login():
+    return render_template("login.html")
+
+
+# Route to handle login form submission
+@app.route("/login", methods=["POST"])
+def login():
+    # Retrieve email and password from the form
+    email = request.form.get("email")
+    password = request.form.get("password")
+
+    # Check the database for the given email and password
+    user = CustomerTable.query.filter_by(email=email, password=password).first()
+
+    if user:
+        # Successful login, redirect to the index page
+        return redirect(url_for("index"))
+    else:
+        # Invalid credentials, render the login page with an error message
+        error_message = "Invalid email or password. Please try again."
+        return render_template("login.html", error_message=error_message)
+
+
+## Cookies --->
+
+## End of Cookies --->
+
+
+@app.route("/")
+def DB_operation():
+    return render_template("DB_operation.html")
+
+
+@app.route("/index")
+def index():
+    return render_template("index.html")
+
+
+@app.route("/products")
+def products():
+    return render_template("products.html")
+
+
+@app.route("/single-product.html")
+def sproduct():
+    return render_template("single-product.html")
+
+
+if __name__ == "__main__":
     app.run(debug=True)

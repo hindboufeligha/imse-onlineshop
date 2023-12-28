@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/login.css') }}">
+    <title>Login</title>
+</head>
+
+<body>
+    <div class="login-container">
+        <form method="post" action="{{ url_for('login') }}">
+            <h2>Login</h2>
+
+            {% if error_message %}
+            <script>
+                // Show an alert with the error message
+                alert("{{ error_message }}");
+            </script>
+            {% endif %}
+
+            <label for="email">Email:</label>
+            <input type="email" id="email" name="email" required>
+            <label for="password">Password:</label>
+            <input type="password" id="password" name="password" required>
+            <button type="submit">Login</button>
+        </form>
+    </div>
+</body>
+
+</html>
