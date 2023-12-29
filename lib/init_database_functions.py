@@ -223,7 +223,7 @@ def initialize_tables(db, count):
 
     # 2: Insert Categories:
     # Insert Categories for once
-    if not count:
+    if count != 0:
         # List of Categories and Sub-categories:
         categories = [
             ("Shirts", "Clothing"),
@@ -292,10 +292,10 @@ def initialize_tables(db, count):
                 "No sub-category available! Skip the product creation in this iteration."
             )
 
-        # FUNC: randomly add products to wishlists
-        # fetch all products and wishlists from DB:
-        products = ProductTable.query.all()
-        wishlists = WishlistTable.query.all()
+    # FUNC: randomly add products to wishlists
+    # fetch all products and wishlists from DB:
+    products = ProductTable.query.all()
+    wishlists = WishlistTable.query.all()
 
     # 5: Randomly add products to wishlists
     # loop through a subset of wishlists and randomly add products to them

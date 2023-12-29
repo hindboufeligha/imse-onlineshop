@@ -37,14 +37,7 @@ def is_category_table_empty():
 
 @app.route("/hh")
 def indexxx():
-    # Fetch and display data:
-    # Access the scoped session
-    session = scoped_session(db.session)
-
-    # Get the model class using class_mapper
-    custoner_table_model = class_mapper(db.Model).base.classes.get("customer_table")
-    customers = custoner_table_model.query.all()
-
+    customers = db.session.query(CustomerTable).all()
     # TEST:
     # Output generated products with their subcategories + parent categories.
     # Aliases for self-joins on CategoryTable
@@ -58,12 +51,12 @@ def indexxx():
             Subcategory.category_name.label("parent_category_name"),
         )
         .join(
-            db.CategoryTable,
-            db.ProductTable.category_id == db.CategoryTable.category_id,
+            CategoryTable,
+            ProductTable.category_id == db.CategoryTable.category_id,
         )
         .join(
             Subcategory,
-            db.CategoryTable.parent_category_id == Subcategory.category_id,
+            CategoryTable.parent_category_id == Subcategory.category_id,
             isouter=True,
         )
         .all()
@@ -80,7 +73,7 @@ def indexxx():
 def fill_database():
     count = is_category_table_empty()
     initialize_tables(db, count)
-    # Redirect to the index page
+    # Stay at the same page
     return redirect(url_for("DB_operation"))
 
 
@@ -116,7 +109,7 @@ def login():
     password = request.form.get("password")
 
     # Check the database for the given email and password
-    user = db.CustomerTable.query.filter_by(email=email, password=password).first()
+    user = CustomerTable.query.filter_by(email=email, password=password).first()
 
     if user:
         # Successful login, redirect to the index page
@@ -139,7 +132,8 @@ def DB_operation():
 
 @app.route("/index")
 def index():
-    return render_template("index.html")
+    customers = db.session.query(CustomerTable).all()
+    return render_template("index.html", customers=customers)
 
 
 @app.route("/products")
