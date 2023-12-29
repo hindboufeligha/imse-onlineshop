@@ -8,6 +8,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.sql import func
 from sqlalchemy.orm import aliased
 from sqlalchemy.orm import Session
+from sqlalchemy.orm import scoped_session, class_mapper
 from faker import Faker
 from faker.providers import (
     BaseProvider,
@@ -15,17 +16,34 @@ from faker.providers import (
 from datetime import datetime
 from lib.init_database_functions import *
 
-app = create_app()
+
+app = Flask(__name__, static_folder="assets", template_folder="templates")
+app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///onlineshop_.db"
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+
+# Explicitly set the template folder
+# app.template_folder = "templates"
+
+db.init_app(app)
 
 
-create_database(app)
-initialize_tables(app)
+# Count the number of records in the CategoryTable
+def is_category_table_empty():
+    # Count the number of records in the CategoryTable
+    count = db.session.query(CategoryTable).count()
+    # Check if the count is zero
+    return count == 0
 
 
 @app.route("/hh")
 def indexxx():
     # Fetch and display data:
-    customers = CustomerTable.query.all()
+    # Access the scoped session
+    session = scoped_session(db.session)
+
+    # Get the model class using class_mapper
+    custoner_table_model = class_mapper(db.Model).base.classes.get("customer_table")
+    customers = custoner_table_model.query.all()
 
     # TEST:
     # Output generated products with their subcategories + parent categories.
@@ -39,10 +57,13 @@ def indexxx():
             CategoryTable.category_name.label("category_name"),
             Subcategory.category_name.label("parent_category_name"),
         )
-        .join(CategoryTable, ProductTable.category_id == CategoryTable.category_id)
+        .join(
+            db.CategoryTable,
+            db.ProductTable.category_id == db.CategoryTable.category_id,
+        )
         .join(
             Subcategory,
-            CategoryTable.parent_category_id == Subcategory.category_id,
+            db.CategoryTable.parent_category_id == Subcategory.category_id,
             isouter=True,
         )
         .all()
@@ -57,7 +78,8 @@ def indexxx():
 
 @app.route("/fill_database", methods=["POST"])
 def fill_database():
-    initialize_tables(app)
+    count = is_category_table_empty()
+    initialize_tables(db, count)
     # Redirect to the index page
     return redirect(url_for("DB_operation"))
 
@@ -65,11 +87,13 @@ def fill_database():
 # Route to empty the database
 @app.route("/empty_database", methods=["POST"])
 def empty_database():
-    # Delete all data from the customer_table
-    db.session.query(CustomerTable).delete()
-    db.session.commit()
+    # Drop and recreate all tables:
+    with app.app_context():
+        db.reflect()
+        db.drop_all()
+        db.create_all()
 
-    # Redirect to the index page
+    # Stay at the same page:
     return redirect(url_for("DB_operation"))
 
 
@@ -92,7 +116,7 @@ def login():
     password = request.form.get("password")
 
     # Check the database for the given email and password
-    user = CustomerTable.query.filter_by(email=email, password=password).first()
+    user = db.CustomerTable.query.filter_by(email=email, password=password).first()
 
     if user:
         # Successful login, redirect to the index page
@@ -129,4 +153,6 @@ def sproduct():
 
 
 if __name__ == "__main__":
+    with app.app_context():
+        db.create_all()
     app.run(debug=True)
