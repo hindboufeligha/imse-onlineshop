@@ -1,0 +1,33 @@
+.img-wrapper {  
+    width: 200px;
+    height: 300px;
+    overflow: hidden; 
+  }
+  #margin{
+    margin-bottom: 50px;
+    margin-left: 150px;
+
+  }
+  #inner-margin{
+     margin-left: -30px;
+  }
+  #inner-margin-bottom{
+    margin-bottom: 50px;
+    margin-left: -70px;
+  }
+  .inner-img {
+    transition: 0.3s;
+  }
+  
+  .inner-img:hover {
+    transform: scale(1.1);
+  }
+  
+  
+  .img-wrapper {
+    display: inline-block;
+    box-sizing: border-box;
+    border: 1px solid #000;
+  }
+
+  
