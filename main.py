@@ -229,9 +229,10 @@ def display_products(gender):
     return render_template("products.html", products=products, p_gender=gender)
 
 
-@app.route("/single-product.html")
-def sproduct():
-    return render_template("single-product.html")
+@app.route("/single-product.html/<product_id>")
+def single_product(product_id):
+    product = ProductTable.query.get(product_id)
+    return render_template("single-product.html", product=product)
 
 
 if __name__ == "__main__":

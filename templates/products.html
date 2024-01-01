@@ -42,11 +42,11 @@
                         <!-- Hover Content for additional actions -->
                         <div class="hover-content">
                             <ul>
-                                <li><a href="{{ url_for('sproduct', product_id=product.p_id) }}"><i
+                                <li><a href="{{ url_for('single_product', product_id=product.p_id) }}"><i
                                             class="fa fa-eye"></i></a></li>
                                 <li><a href="{{ url_for('add_review', product_id=product.p_id) }}"><i
                                             class="fa fa-star"></i></a></li>
-                                <li><a href="{{ url_for('add_review', product_id=product.p_id) }}"><i
+                                <li><a href="{{ url_for('single_product', product_id=product.p_id) }}"><i
                                             class="fa fa-shopping-cart"></i></a></li>
                             </ul>
                         </div>
@@ -54,8 +54,8 @@
                     <!-- Product Details -->
                     <div class="down-content">
                         <h4>{{ product.p_name }}</h4>
-                        <span>${{ product.p_price }}</span>
-                        <p>{{ product.p_description }}</p>
+                        <span>{{ product.p_price }} €</span>
+                        <!--<p>{{ product.p_description }}</p>-->
                         <!--<button onclick="addToCart('{{ product.name }}', '{{ product.id }}', '{{ gender }}')">Add to
                             Cart</button>-->
                         <!-- Rating Display (if available) -->
