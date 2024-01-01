@@ -1,4 +1,11 @@
-from flask import Flask, render_template, request, redirect, url_for, send_from_directory
+from flask import (
+    Flask,
+    render_template,
+    request,
+    redirect,
+    url_for,
+    send_from_directory,
+)
 import os
 import random
 import sqlite3
@@ -9,11 +16,10 @@ from sqlalchemy.sql import func
 from lib.init_database_functions import *
 
 
-
 app = Flask(__name__, static_folder="assets", template_folder="templates")
 app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///onlineshop_.db"
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-app.config['UPLOAD_FOLDER'] = 'assets/images'
+app.config["UPLOAD_FOLDER"] = "assets/images"
 
 # Explicitly set the template folder
 # app.template_folder = "templates"
@@ -124,25 +130,26 @@ def DB_operation():
     return render_template("DB_operation.html")
 
 
-
 ## Uploading images into product table --->
-@app.route('/upload', methods=['GET', 'POST'])
+@app.route("/upload", methods=["GET", "POST"])
 def upload_product():
-    if request.method == 'POST':
+    if request.method == "POST":
         # Get form data
-        product_name = request.form.get('product_name')
-        description = request.form.get('description')
-        price = request.form.get('price')
-        gender = request.form.get('gender')
-        size_variation = 'size_variation' in request.form
-        quantity = request.form.get('quantity')
-        subcategory_id = request.form.get('subcategory')
+        product_name = request.form.get("product_name")
+        description = request.form.get("description")
+        price = request.form.get("price")
+        gender = request.form.get("gender")
+        size_variation = "size_variation" in request.form
+        quantity = request.form.get("quantity")
+        subcategory_id = request.form.get("subcategory")
 
         # Get uploaded file
-        image_file = request.files['image']
+        image_file = request.files["image"]
 
         # Save the file to the server
-        file_path = os.path.join(app.config['UPLOAD_FOLDER'], secure_filename(image_file.filename))
+        file_path = os.path.join(
+            app.config["UPLOAD_FOLDER"], secure_filename(image_file.filename)
+        )
         image_file.save(file_path)
 
         # Check if the subcategory exists
@@ -169,10 +176,10 @@ def upload_product():
     # Fetch subcategories for the form
     subcategories = CategoryTable.query.all()
 
-    return render_template('img.html', subcategories=subcategories)
-    
-## End uploading images --->
+    return render_template("img.html", subcategories=subcategories)
 
+
+## End uploading images --->
 
 
 @app.route("/index")
@@ -180,18 +187,21 @@ def index():
     customers = db.session.query(CustomerTable).all()
     return render_template("index.html", customers=customers)
 
+
 ##########
+
 
 @app.route("/psubcategory")
 def psubcategory():
-    p_gender = request.args.get('p_gender')
+    p_gender = request.args.get("p_gender")
     return render_template("p-subcategory.html", p_gender=p_gender)
 
-@app.route('/products')
+
+@app.route("/products")
 def products():
-    category_name = request.args.get('category_name')
-    parent_category_id = request.args.get('parent_category_id')
-    p_gender = request.args.get('p_gender')
+    category_name = request.args.get("category_name")
+    parent_category_id = request.args.get("parent_category_id")
+    p_gender = request.args.get("p_gender")
 
     # Fetch products based on category_name, parent_category_id, and gender
     products_with_categories = (
@@ -199,12 +209,24 @@ def products():
         .join(CategoryTable, ProductTable.category_id == CategoryTable.category_id)
         .filter(
             CategoryTable.category_name == category_name,
-            ProductTable.p_gender == p_gender
+            ProductTable.p_gender == p_gender,
         )
         .all()
     )
 
-    return render_template("products.html", products_with_categories=products_with_categories, category_name=category_name, p_gender=p_gender)
+    return render_template(
+        "products.html",
+        products_with_categories=products_with_categories,
+        category_name=category_name,
+        p_gender=p_gender,
+    )
+
+
+# from index, when the user clicks on discover --> depends on the gender --> will be redirected to this page products.html
+@app.route("/products/<gender>")
+def display_products(gender):
+    products = ProductTable.query.filter_by(p_gender=gender).all()
+    return render_template("products.html", products=products, p_gender=gender)
 
 
 @app.route("/single-product.html")
