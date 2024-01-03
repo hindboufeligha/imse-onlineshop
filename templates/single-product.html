@@ -87,7 +87,9 @@
 
                         <!-- Display the Total -->
                         <div class="total">
-                            <h4>Total: <span id="total_price"> {{ product.p_price }}</span> €</h4>
+                            <h4 style="display: inline;">Total:</h4>
+                            <h4 style="display: block;" id="total_price"> {{ product.p_price }}</h4>
+                            <h4 style="display: inline;">€</h4>
                             <div class="main-border-button"><button type="submit">Add To Cart</button></div>
                         </div>
 
