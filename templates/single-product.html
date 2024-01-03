@@ -17,7 +17,7 @@
 
 
 <!-- ***** Product Area Starts ***** -->
-<section class="section" id="product">
+<section class="section" id="product" data-product-id="{{product.p_id}}">
     <div class="container">
         <div class="row">
             <div class="col-lg-8">
@@ -48,41 +48,47 @@
                     </div>
                     -->
 
-                    <div class="size-form-group">
-                        <div class="left-content">
-                            <h4>Size:</h4>
-                        </div>
-                        <div class="right-content">
-                            <div class="select-size">
-                                <select class="form-control" id="size" name="size">
-                                    <option value="small">S</option>
-                                    <option value="medium">M</option>
-                                    <option value="large">L</option>
-                                    <option value="xl">XL</option>
-                                </select>
+                    <form method="POST">
+                        <!-- Select Size -->
+                        <div class="size-form-group">
+                            <div class="left-content">
+                                <h4>Size:</h4>
+                            </div>
+                            <div class="right-content">
+                                <div class="select-size">
+
+                                    <select class="form-control" id="size" name="size">
+                                        {% for size in sizes %}
+                                        <option value="{{ size.name }}">{{ size.name }}</option>
+
+                                        {% endfor %}
+                                    </select>
+                                </div>
                             </div>
                         </div>
-                    </div>
 
 
 
-
-                    <div class="quantity-content">
-                        <div class="left-content">
-                            <h6>No. of Orders</h6>
-                        </div>
-                        <div class="right-content">
-                            <div class="quantity buttons_added">
-                                <input type="button" value="-" class="minus"><input type="number" step="1" min="1"
-                                    max="" name="quantity" value="1" title="Qty" class="input-text qty text" size="4"
-                                    pattern="" inputmode=""><input type="button" value="+" class="plus">
+                        <!-- Select Quantity -->
+                        <div class="quantity-content">
+                            <div class="left-content">
+                                <h6>Quantity:</h6>
+                            </div>
+                            <div class="right-content">
+                                <div class="quantity buttons_added">
+                                    <input type="button" value="-" class="minus"><input type="number" step="1" min="1"
+                                        max="" name="quantity" value="1" title="Qty" class="input-text qty text"
+                                        size="4" pattern="" inputmode=""><input type="button" value="+" class="plus">
+                                </div>
                             </div>
                         </div>
-                    </div>
-                    <div class="total">
-                        <h4>Total: $210.00</h4>
-                        <div class="main-border-button"><a href="#">Add To Cart</a></div>
-                    </div>
+                        <div class="total">
+                            <h4>Total: $210.00</h4>
+                            <div class="main-border-button"><a href="#">Add To Cart</a></div>
+                        </div>
+
+                    </form>
+
                 </div>
             </div>
         </div>
@@ -148,8 +154,9 @@
 </footer>
 
 
-<!-- jQuery -->
+<!-- jQuery Libraries -->
 <script src="../assets/js/jquery-2.1.0.min.js"></script>
+<script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
 
 <!-- Bootstrap -->
 <script src="../assets/js/popper.js"></script>
@@ -185,6 +192,65 @@
             }, 500);
 
         });
+    });
+
+</script>
+
+<!-- Update sized and quantities of the selected (current )product -->
+<script>
+
+    var productID = '{{product.p_id}}'
+    function updateSizesandQuantitiesAvailable(productID) {
+        //make an AJAX request to the server to fetch sizes and quantities associated with the current product
+        $.ajax({
+            type: 'GET',
+            url: '/single-product.html/<product_id>',
+            data: { productID: productID },
+            success: function (response) {
+                // Update the dropdown of available sizes:
+                var selectSize = $('#size');
+                selectSize.empty();
+
+
+                // Append options based on the response from the server:
+                $.each(response.sizes, function (index, size) {
+                    selectSize.append($('<option>', {
+                        value: size.name.toLowerCase(),
+                        text: size.name
+                    }));
+                });
+
+                // Update the avalaible quantities associated with the selected size:
+                updateQuantitiesAvailable(response.sizes);
+            },
+
+            error: function (error) {
+                console.error('Error fetching sized and quantities from db: ', error);
+            }
+        });
+
+    }
+
+    // Update the availbale quantities based on the selected size:
+    function updateQuantitiesAvailable(sizes) {
+        var selectQuantity = $('[name="quantity"]');
+        var selectedSize = $('#size').val();
+
+        // Find the quantity available that corresponds to the selected size:
+        var quantity = sizes.find(function (size) {
+            return size.name.toLowerCase() === selectedSize;
+        }).quantity;
+
+
+        // Update the max attribute of the quantity input:
+        selectQuantity.attr('max', quantity);
+    }
+
+
+    // Event handler for product selection (we need to trigger this when the user selects a product)
+    $('#product-select').change(function () {
+        var selectedProductID = $(this).val();
+        updateSizesandQuantitiesAvailable(selectedProductID)
     });
 
 </script>

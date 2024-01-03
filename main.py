@@ -5,6 +5,7 @@ from flask import (
     redirect,
     url_for,
     send_from_directory,
+    jsonify,
 )
 import os
 import random
@@ -222,6 +223,7 @@ def products():
     )
 
 
+### Display Products based on the gender in products.html ###
 # from index, when the user clicks on discover --> depends on the gender --> will be redirected to this page products.html
 @app.route("/products/<gender>")
 def display_products(gender):
@@ -229,10 +231,49 @@ def display_products(gender):
     return render_template("products.html", products=products, p_gender=gender)
 
 
-@app.route("/single-product.html/<product_id>")
+### END ###
+
+
+### Rout to display the selected Product details on single-product.html ###
+@app.route("/single-product.html/<product_id>", methods=["GET", "POST"])
 def single_product(product_id):
     product = ProductTable.query.get(product_id)
-    return render_template("single-product.html", product=product)
+
+    if request.method == "GET":
+        # Fetch sizes and quantities based on the product_id from SizeTable and product_size_association join table
+        sizes_quantities = (
+            db.session.query(SizeTable.size_name, product_size_association.c.quantity)
+            .join(product_size_association)
+            .filter(product_size_association.c.p_id == product_id)
+            .all()
+        )
+
+        sizes = [
+            {"name": size, "quantity": quantity} for size, quantity in sizes_quantities
+        ]
+
+    elif request.method == "POST":
+        selected_size = request.form.get("size")
+        selected_quantity = request.form.get("quantity")
+
+        # Perform actions with the selected size and quantity (e.g., add to cart)
+        # You can redirect to the cart page or perform additional logic here
+
+        return redirect(url_for("cart_page"))
+
+    return render_template("single-product.html", product=product, sizes=sizes)
+
+
+### END ###
+
+
+### Rout to display the cart content ###
+@app.route("/cart")
+def cart_display():
+    return render_template("cart.html")
+
+
+### END ###
 
 
 if __name__ == "__main__":
