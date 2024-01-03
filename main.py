@@ -259,7 +259,7 @@ def single_product(product_id):
         # Perform actions with the selected size and quantity (e.g., add to cart)
         # You can redirect to the cart page or perform additional logic here
 
-        return redirect(url_for("cart_page"))
+        return redirect(url_for("cart_display"))
 
     return render_template("single-product.html", product=product, sizes=sizes)
 
