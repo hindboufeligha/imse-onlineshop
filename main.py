@@ -245,7 +245,6 @@ def products():
     category_name = request.args.get("category_name")
     parent_category_id = request.args.get("parent_category_id")
     p_gender = request.args.get("p_gender")
-    
 
     # Fetch products based on category_name, parent_category_id, and gender
     products_with_categories = (
@@ -284,7 +283,43 @@ def display_products(gender):
 ### END ###
 
 
+### Route to display the selected Product details on single-product.html ###
+@app.route("/single-product.html/<product_id>", methods=["GET", "POST"])
+def single_product(product_id):
+    product = ProductTable.query.get(product_id)
 
+    if request.method == "GET":
+        # Fetch sizes and quantities based on the product_id from SizeTable and product_size_association join table
+        sizes_quantities = (
+            db.session.query(SizeTable.size_name, product_size_association.c.quantity)
+            .join(product_size_association)
+            .filter(product_size_association.c.p_id == product_id)
+            .all()
+        )
+
+        sizes = [
+            {"name": size, "quantity": quantity} for size, quantity in sizes_quantities
+        ]
+
+    elif request.method == "POST":
+        selected_size = request.form.get("size")
+        selected_quantity = request.form.get("quantity")
+
+        # Perform actions with the selected size and quantity (e.g., add to cart)
+        # You can redirect to the cart page or perform additional logic here
+        # A MODIER PLUS TARD
+        return redirect(url_for("cart_display"))
+
+    user_id = session.get("user_id")
+    if user_id:
+        user_data = CustomerTable.query.filter_by(customer_id=user_id).first()
+        if user_data:
+            return render_template(
+                "single-product.html", user_data=user_data, product=product, sizes=sizes
+            )
+
+
+### END ###
 
 
 ### Rout to display the cart content ###

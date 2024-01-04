@@ -33,6 +33,16 @@ wishlist_product_association = db.Table(
     db.Column("productID", db.Integer, db.ForeignKey("product_table.p_id")),
 )
 
+product_size_association = db.Table(
+    "product_size_association",
+    db.Column("p_id", db.Integer, db.ForeignKey("product_table.p_id")),
+    db.Column("size_id", db.Integer, db.ForeignKey("size_table.size_id")),
+    db.Column("quantity", db.Integer, nullable=False),
+    # db.Column('price_per_unit', db.DECIMAL(10, 2)),
+    # db.Column('discount_percentage', db.DECIMAL(5, 2)),
+    db.PrimaryKeyConstraint("p_id", "size_id"),
+)
+
 
 class CustomerTable(db.Model):
     __tablename__ = "customer_table"
@@ -78,15 +88,26 @@ class ProductTable(db.Model):
     p_description = db.Column(db.String(255))
     p_price = db.Column(db.String(255))
     p_gender = db.Column(db.String(255))
-    p_size_variation = db.Column(db.String(255))
+    # p_size_variation = db.Column(db.String(255))
     p_image_url = db.Column(db.String(255))
-    p_quantity = db.Column(db.Integer)
+    # p_quantity = db.Column(db.Integer)
     reviews = db.relationship("ReviewTable", backref="product", lazy=True)
     category_id = db.Column(
         db.Integer, db.ForeignKey("category_table.category_id"), nullable=False
     )
 
     cart_items = db.relationship("CartItemTable", backref="product", lazy=True)
+    sizes = db.relationship(
+        "SizeTable",
+        secondary=product_size_association,
+        backref="products_with_quantities",
+    )
+
+
+class SizeTable(db.Model):
+    __tablename__ = "size_table"
+    size_id = db.Column(db.Integer, primary_key=True)
+    size_name = db.Column(db.String(255), nullable=False)
 
 
 # CREATE TABLE Product_Size (
@@ -294,13 +315,50 @@ def initialize_tables(db, count):
                 p_description=fake.sentence(),
                 p_price=round(random.uniform(10, 1000), 2),
                 p_gender=gender,
-                p_size_variation=0,
+                # p_size_variation=size_variation,
                 category_id=subcategory.category_id,
                 p_image_url=image_url,
-                p_quantity=12,
             )
             db.session.add(new_product)
             db.session.commit()
+
+            if (
+                subcategory.category_name == "Boots"
+                or subcategory.category_name == "Sneakers"
+            ):
+                sizes = ["37", "38", "39", "40"]
+
+            elif (
+                subcategory.category_name == "Jewellery"
+                or subcategory.category_name == "Bags"
+            ):
+                sizes = ["One Size"]
+
+            else:
+                sizes = ["S", "M", "L", "XL"]
+
+            # Associate the new product with all its relevant sizes:
+            for size_name in sizes:
+                size = SizeTable.query.filter_by(size_name=size_name).first()
+
+                if not size:
+                    size = SizeTable(size_name=size_name)
+                    db.session.add(size)
+                    db.session.commit()
+
+                quantity = random.randint(5, 50)
+                # price_per_unit = round(random.uniform(5.0, 20.0), 2)
+                # discount_percentage = round(random.uniform(0.0, 30.0), 2)
+                product_size = product_size_association.insert().values(
+                    p_id=new_product.p_id,
+                    size_id=size.size_id,
+                    quantity=quantity,
+                    # price_per_unit=price_per_unit,
+                    # discount_percentage=discount_percentage,
+                )
+
+                db.session.execute(product_size)
+                db.session.commit()
 
         else:  # if there are no sub-categories:
             print(
