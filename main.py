@@ -6,6 +6,7 @@ from flask import (
     url_for,
     send_from_directory,
     jsonify,
+    session,
 )
 from flask_login import (
     LoginManager,
@@ -26,9 +27,12 @@ from lib.init_database_functions import *
 
 
 app = Flask(__name__, static_folder="assets", template_folder="templates")
+app.config["SECRET_KEY"] = os.urandom(24)
 app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///onlineshop_.db"
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+
 app.config["UPLOAD_FOLDER"] = "assets/images"
+
 
 # Explicitly set the template folder
 # app.template_folder = "templates"
@@ -113,16 +117,20 @@ def show_login():
 # Route to handle login form submission
 @app.route("/login", methods=["POST"])
 def login():
-    # Retrieve email and password from the form
+    # Retrieve email and password from the form:
     email = request.form.get("email")
     password = request.form.get("password")
 
-    # Check the database for the given email and password
-    user = CustomerTable.query.filter_by(email=email, password=password).first()
+    # Check the database for the given email and password:
+    customer = CustomerTable.query.filter_by(email=email, password=password).first()
 
-    if user:
-        # Successful login, redirect to the index page
-        return redirect(url_for("index"))
+    if customer:
+        # Successful login, store the current customer's ID using sessions:
+        session["user_id"] = customer.customer_id
+        # To retrieve the user in subsequent requests:
+        customerID = session.get("user_id")
+        # redirect to the index page:
+        return redirect(url_for("index", customer=customer))
     else:
         # Invalid credentials, render the login page with an error message
         error_message = "Invalid email or password. Please try again."
@@ -193,8 +201,8 @@ def upload_product():
 
 @app.route("/index")
 def index():
-    customers = db.session.query(CustomerTable).all()
-    return render_template("index.html", customers=customers)
+    # Render the dashboard with user-specific information
+    return render_template("index.html")
 
 
 ##########
@@ -278,6 +286,8 @@ def single_product(product_id):
 ### Rout to display the cart content ###
 @app.route("/cart")
 def cart_display():
+    # To retrieve the user in subsequent requests:
+    customerID = session.get("user_id")
     return render_template("cart.html")
 
 
