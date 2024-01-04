@@ -113,18 +113,23 @@ def add_review():
 
 @app.route("/order_list")
 def order_list():
-    user_id = session.get('user_id')
+    user_id = session.get("user_id")
     if user_id:
         # Query to find all products associated with the user
-        associated_products = db.session.query(customer_product_association, ProductTable).join(
-            ProductTable, customer_product_association.c.productID == ProductTable.p_id
-        ).filter(customer_product_association.c.customerID == user_id).all()
+        associated_products = (
+            db.session.query(customer_product_association, ProductTable)
+            .join(
+                ProductTable,
+                customer_product_association.c.productID == ProductTable.p_id,
+            )
+            .filter(customer_product_association.c.customerID == user_id)
+            .all()
+        )
 
         return render_template("order_list.html", products=associated_products)
     else:
         # Redirect to login if no user is in session
         return redirect(url_for("show_login"))
-
 
 
 # Route to display login page
@@ -180,23 +185,17 @@ def signup():
         flash("Email already in use. Please choose another email.", "danger")
         return redirect(url_for("show_signup"))
 
-    # Hash the password securely
-    hashed_password = bcrypt.generate_password_hash(password).decode("utf-8")
-
-    # Create a new user
-    new_user = CustomerTable(
+    # Create a new customer:
+    add_customer(
         firstname=firstname,
         familyname=familyname,
         email=email,
         phone_no=phone_no,
         username=username,
-        password=hashed_password,
+        password=password,
     )
 
-    db.session.add(new_user)
-    db.session.commit()
-
-    flash("Account created successfully. You can now log in.", "success")
+    flash("Account created successfully! You can now log-in.", "success")
     return redirect(url_for("show_login"))
 
 
@@ -240,7 +239,6 @@ def products():
     category_name = request.args.get("category_name")
     parent_category_id = request.args.get("parent_category_id")
     p_gender = request.args.get("p_gender")
-    
 
     # Fetch products based on category_name, parent_category_id, and gender
     products_with_categories = (
@@ -277,6 +275,7 @@ def display_products(gender):
 
 
 ### END ###
+
 
 ### Route to display the selected Product details on single-product.html ###
 @app.route("/single-product.html/<product_id>", methods=["GET", "POST"])
@@ -315,9 +314,6 @@ def single_product(product_id):
 
 
 ### END ###
-
-
-
 
 
 ### Rout to display the cart content ###
