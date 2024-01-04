@@ -4,8 +4,13 @@ from flask import (
     request,
     redirect,
     url_for,
-    send_from_directory,
+    send_from_directory,  flash
 )
+
+from flask_session import Session
+from flask_bcrypt import Bcrypt
+from bcrypt import hashpw, gensalt
+
 import os
 import random
 import sqlite3
@@ -17,6 +22,11 @@ from lib.init_database_functions import *
 
 
 app = Flask(__name__, static_folder="assets", template_folder="templates")
+app.config['SESSION_TYPE'] = 'filesystem'  
+app.config['SECRET_KEY'] = 'your_secret_key'
+Session(app)
+bcrypt = Bcrypt(app)
+
 app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///onlineshop_.db"
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 app.config["UPLOAD_FOLDER"] = "assets/images"
@@ -94,6 +104,30 @@ def empty_database():
 def add_review():
     return render_template("add-review.html")
 
+@app.route("/order_list")
+def order_list():
+    # Query to fetch paid carts with product details
+    paid_carts = db.session.query(
+        ProductTable.p_id,
+        ProductTable.p_name,
+        ProductTable.p_description,
+        ProductTable.p_price,
+        ProductTable.p_image_url,
+        CartItemTable.quantity,
+        PaymentTable.payment_date
+    ).join(
+        CartItemTable, CartItemTable.product_id == ProductTable.p_id
+    ).join(
+        CartTable, CartTable.cart_id == CartItemTable.cart_id
+    ).join(
+        PaymentTable, PaymentTable.cart_id == CartTable.cart_id
+    ).all()
+
+    # Render the HTML template with the paid carts data
+    return render_template('order_list.html', paid_carts=paid_carts)
+
+
+
 
 # Route to display login page
 @app.route("/login", methods=["GET"])
@@ -105,13 +139,14 @@ def show_login():
 @app.route("/login", methods=["POST"])
 def login():
     # Retrieve email and password from the form
+    
     email = request.form.get("email")
     password = request.form.get("password")
 
     # Check the database for the given email and password
-    user = CustomerTable.query.filter_by(email=email, password=password).first()
+    user = CustomerTable.query.filter_by(email=email).first()
 
-    if user:
+    if user and bcrypt.check_password_hash(user.password, password):
         # Successful login, redirect to the index page
         return redirect(url_for("index"))
     else:
@@ -120,6 +155,45 @@ def login():
         return render_template("login.html", error_message=error_message)
 
 
+
+
+@app.route("/signup", methods=["GET"])
+def show_signup():
+    return render_template("signup.html")
+
+@app.route("/signup", methods=["POST"])
+def signup():
+    firstname = request.form.get("firstname")
+    familyname = request.form.get("familyname")
+    email = request.form.get("email")
+    phone_no = request.form.get("phone_no")
+    username = request.form.get("username")
+    password = request.form.get("password")
+
+    # Check if the email is already in use
+    existing_user = CustomerTable.query.filter_by(email=email).first()
+    if existing_user:
+        flash("Email already in use. Please choose another email.", "danger")
+        return redirect(url_for("show_signup"))
+
+    # Hash the password securely
+    hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
+
+    # Create a new user
+    new_user = CustomerTable(
+        firstname=firstname,
+        familyname=familyname,
+        email=email,
+        phone_no=phone_no,
+        username=username,
+        password=hashed_password
+    )
+
+    db.session.add(new_user)
+    db.session.commit()
+
+    flash("Account created successfully. You can now log in.", "success")
+    return redirect(url_for("show_login"))
 ## Cookies --->
 
 ## End of Cookies --->
@@ -186,9 +260,6 @@ def upload_product():
 def index():
     customers = db.session.query(CustomerTable).all()
     return render_template("index.html", customers=customers)
-
-
-##########
 
 
 @app.route("/psubcategory")
