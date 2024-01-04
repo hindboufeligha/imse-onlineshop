@@ -13,6 +13,7 @@ from flask import (
 from flask_session import Session
 from flask_bcrypt import Bcrypt
 from bcrypt import hashpw, gensalt
+import bcrypt
 
 import os
 import random
@@ -29,6 +30,7 @@ app.config["SESSION_TYPE"] = "filesystem"
 app.config["SECRET_KEY"] = "a)b@c!(d@e#fg%hi^j&k"
 Session(app)
 bcrypt = Bcrypt(app)
+
 app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///onlineshop_.db"
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
@@ -214,7 +216,7 @@ def index():
     if user_id:
         user_data = CustomerTable.query.filter_by(customer_id=user_id).first()
         if user_data:
-            # Render the index page with the user's data
+            # Pass user_data to the template
             return render_template("index.html", user_data=user_data)
         else:
             # Handle case where user data is not found
