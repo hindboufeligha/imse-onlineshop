@@ -36,24 +36,22 @@ display: inline-block; }
 
 
 
-  
-  .file-upload-fieldset {
-    border: none;
-    margin: 10px 0;
-}
-
+ #title{
+  margin-left: -85px;
+ }
 .file-upload-label {
+  border: 1px solid rgb(0, 0, 0);
+    margin-left: -50px;
     display: inline-block;
-    background-color: #25282b;
+    background-color: white;
     color: white;
-    padding: 10px 20px;
-    border-radius: 5px;
+    border-radius: 10px;
     cursor: pointer;
     transition: background-color 0.3s ease;
 }
 
 .file-upload-label:hover {
-    background-color: #00060c;
+    border: 2px solid rgb(0, 0, 0);
 }
 
 .form-control-file {

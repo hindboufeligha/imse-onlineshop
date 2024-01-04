@@ -14,10 +14,7 @@
             <h2>Login</h2>
 
             {% if error_message %}
-            <script>
-                // Show an alert with the error message
-                alert("{{ error_message }}");
-            </script>
+            <p>  {{ error_message }}  </p> 
             {% endif %}
 
             <label for="email">Email:</label>
