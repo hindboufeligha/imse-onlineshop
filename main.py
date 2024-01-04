@@ -4,7 +4,7 @@ from flask import (
     request,
     redirect,
     url_for,
-    send_from_directory,  flash
+    send_from_directory,  flash, session
 )
 
 from flask_session import Session
@@ -23,7 +23,7 @@ from lib.init_database_functions import *
 
 app = Flask(__name__, static_folder="assets", template_folder="templates")
 app.config['SESSION_TYPE'] = 'filesystem'  
-app.config['SECRET_KEY'] = 'your_secret_key'
+app.config['SECRET_KEY'] = 'a)b@c!(d@e#fg%hi^j&k'
 Session(app)
 bcrypt = Bcrypt(app)
 
@@ -147,12 +147,19 @@ def login():
     user = CustomerTable.query.filter_by(email=email).first()
 
     if user and bcrypt.check_password_hash(user.password, password):
-        # Successful login, redirect to the index page
+        session['user_id'] = user.customer_id
         return redirect(url_for("index"))
+
     else:
         # Invalid credentials, render the login page with an error message
         error_message = "Invalid email or password. Please try again."
         return render_template("login.html", error_message=error_message)
+
+
+@app.route('/logout')
+def logout():
+    session.pop('user_id', None)
+    return redirect(url_for('show_login'))
 
 
 
@@ -258,8 +265,18 @@ def upload_product():
 
 @app.route("/index")
 def index():
-    customers = db.session.query(CustomerTable).all()
-    return render_template("index.html", customers=customers)
+    user_id = session.get('user_id')
+    if user_id:
+        user_data = CustomerTable.query.filter_by(customer_id=user_id).first()
+        if user_data:
+            # Render the index page with the user's data
+            return render_template("index.html", user_data=user_data)
+        else:
+            # Handle case where user data is not found
+            return "User data not found", 404
+    else:
+        # Redirect to login if no user is in session
+        return redirect(url_for("show_login"))
 
 
 @app.route("/psubcategory")
