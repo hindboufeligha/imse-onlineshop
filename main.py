@@ -245,6 +245,7 @@ def products():
     category_name = request.args.get("category_name")
     parent_category_id = request.args.get("parent_category_id")
     p_gender = request.args.get("p_gender")
+    
 
     # Fetch products based on category_name, parent_category_id, and gender
     products_with_categories = (
