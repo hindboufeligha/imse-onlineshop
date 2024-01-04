@@ -1,18 +1,15 @@
 from flask import Flask, render_template, request, redirect, url_for
 import random
 import sqlite3
-from flask_sqlalchemy import (
-    SQLAlchemy,
-)  # to define the tables, relationships, and associations in our Online Shop Web Application.
+from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import create_engine
 from sqlalchemy.sql import func
 from sqlalchemy.orm import aliased
 from sqlalchemy.orm import Session
 from faker import Faker
-from faker.providers import (
-    BaseProvider,
-)  # to create a custom provider for Faker to generate random Image URLs
+from faker.providers import BaseProvider
 from datetime import datetime
+import bcrypt
 
 db = SQLAlchemy()
 
@@ -211,6 +208,15 @@ def initialize_tables(db, count):
     # 1: Insert random data of Customers into the DB:
     fake = Faker(["de_AT"])  # generate data in Austrian Deutsch
     for _ in range(10):  # 10 customers
+        plain_password = fake.password(
+              length=8,
+        special_chars=True,
+        digits=True,
+        upper_case=True,
+        lower_case=True,
+        )
+        hashed_password = bcrypt.hashpw(plain_password.encode(), bcrypt.gensalt())
+
         new_customer = CustomerTable(
             firstname=fake.first_name(),
             familyname=fake.last_name(),
@@ -218,13 +224,7 @@ def initialize_tables(db, count):
             # phone_no=fake.phone_number(),
             phone_no=fake.numerify(text="+43 ###########"),
             username=fake.user_name(),
-            password=fake.password(
-                length=8,
-                special_chars=True,
-                digits=True,
-                upper_case=True,
-                lower_case=True,
-            ),
+            password=hashed_password,
         )
 
         # generate 1-2 random address for each customer:
@@ -393,3 +393,8 @@ def initialize_tables(db, count):
         customer.products.extend(random.sample(products, num))
 
     db.session.commit()
+
+
+
+
+
