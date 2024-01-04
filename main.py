@@ -214,7 +214,7 @@ def index():
     if user_id:
         user_data = CustomerTable.query.filter_by(customer_id=user_id).first()
         if user_data:
-            # Render the index page with the user's data
+            # Pass user_data to the template
             return render_template("index.html", user_data=user_data)
         else:
             # Handle case where user data is not found
