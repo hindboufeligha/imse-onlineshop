@@ -32,7 +32,11 @@
 
 
 <div class="orders-container">
-    {% for product_name, description, price, image_url, quantity, payment_date in paid_carts %}
+    {% for association, product in products %}
+ 
+        <h3>{{ product.name }}</h3>
+     
+
 
     <div class="order-header">
         <p>Delivery Date </br>24 Dec, 2018 </p>
@@ -41,12 +45,12 @@
     </div>
     <!-- Order Item -->
     <div class="order-item d-flex justify-content-between align-items-center">
-        <img src="{{ image_url }}" alt="Product Image" class="order-img">
+        <img src="{{ product.p_image_url }}" alt="Product Image" class="order-img">
         <div>
-            <p class="order-info">{{ product_name }}</p>
-            <p class="order-info">{{ description }}</p>
-            <p class="order-info">Price: ${{ price }}</p>
-            <p class="order-info">Payment Date: {{ payment_date.strftime('%Y-%m-%d') }}</p>
+            <p class="order-info">{{ product.p_name }}</p>
+            <p class="order-info">{{ product.p_description }}</p>
+            <p class="order-info">Price: ${{ product.p_price }}</p>
+            <p class="order-info">Payment Date: 9/10/2023</p>
         </div>
         <div class="order-actions">
             <button class="button-23" role="button" >Track package</button></br>

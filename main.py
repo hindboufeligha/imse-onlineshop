@@ -111,25 +111,18 @@ def add_review():
 
 @app.route("/order_list")
 def order_list():
-    # Query to fetch paid carts with product details
-    paid_carts = (
-        db.session.query(
-            ProductTable.p_id,
-            ProductTable.p_name,
-            ProductTable.p_description,
-            ProductTable.p_price,
-            ProductTable.p_image_url,
-            CartItemTable.quantity,
-            PaymentTable.payment_date,
-        )
-        .join(CartItemTable, CartItemTable.product_id == ProductTable.p_id)
-        .join(CartTable, CartTable.cart_id == CartItemTable.cart_id)
-        .join(PaymentTable, PaymentTable.cart_id == CartTable.cart_id)
-        .all()
-    )
+    user_id = session.get('user_id')
+    if user_id:
+        # Query to find all products associated with the user
+        associated_products = db.session.query(customer_product_association, ProductTable).join(
+            ProductTable, customer_product_association.c.productID == ProductTable.p_id
+        ).filter(customer_product_association.c.customerID == user_id).all()
 
-    # Render the HTML template with the paid carts data
-    return render_template("order_list.html", paid_carts=paid_carts)
+        return render_template("order_list.html", products=associated_products)
+    else:
+        # Redirect to login if no user is in session
+        return redirect(url_for("show_login"))
+
 
 
 # Route to display login page
