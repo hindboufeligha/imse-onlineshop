@@ -386,7 +386,7 @@ def initialize_tables(db, count):
     products = ProductTable.query.all()
 
     # loop through a subset of customers and randomly associate them with some products
-    for customer in random.sample(customers, min(len(customers), 2)):
+    for customer in customers:
         # number of products to be added to the wishlist:
         num = random.randint(1, min(len(products), 2))
         # add products to each wishlist

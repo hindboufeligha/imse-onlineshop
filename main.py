@@ -238,6 +238,7 @@ def products():
     category_name = request.args.get("category_name")
     parent_category_id = request.args.get("parent_category_id")
     p_gender = request.args.get("p_gender")
+    
 
     # Fetch products based on category_name, parent_category_id, and gender
     products_with_categories = (
@@ -274,7 +275,6 @@ def display_products(gender):
 
 
 ### END ###
-
 
 ### Route to display the selected Product details on single-product.html ###
 @app.route("/single-product.html/<product_id>", methods=["GET", "POST"])
@@ -313,6 +313,9 @@ def single_product(product_id):
 
 
 ### END ###
+
+
+
 
 
 ### Rout to display the cart content ###
