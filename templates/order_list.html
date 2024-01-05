@@ -17,7 +17,7 @@
 
 
         <div class="wrapper">
-            <form method="post" action="">
+            <form method="post" action="{{ url_for('search_products') }}">
                 <div class="searchBar">
                 <input id="searchQueryInput" type="text" name="searchQueryInput" placeholder="Search" value="" />
                 <button id="searchQuerySubmit" type="submit" name="searchQuerySubmit">
@@ -27,37 +27,37 @@
                 </div>
             </form>
         </div>
+
     </div>
 </div>   
 
 
 <div class="orders-container">
-    {% for association, product in products %}
- 
-        <h3>{{ product.name }}</h3>
-     
-
-
-    <div class="order-header">
-        <p>Delivery Date </br>24 Dec, 2018 </p>
-        <p></p>
-        <p class="order-info">Order No.: 377685955 </br>Order Date: 20 Dec, 2018</p>
-    </div>
-    <!-- Order Item -->
-    <div class="order-item d-flex justify-content-between align-items-center">
-        <img src="{{ product.p_image_url }}" alt="Product Image" class="order-img">
-        <div>
-            <p class="order-info">{{ product.p_name }}</p>
-            <p class="order-info">{{ product.p_description }}</p>
-            <p class="order-info">Price: ${{ product.p_price }}</p>
-            <p class="order-info">Payment Date: 9/10/2023</p>
+    {% for product in products %}
+        <h6>{{ product.p_name }}</h6>
+        
+        <div class="order-header">
+            <p>Delivery Date </br>24 Dec, 2018 </p>
+            <p></p>
+            <p class="order-info">Order No.: 377685955 </br>Order Date: 20 Dec, 2018</p>
         </div>
-        <div class="order-actions">
-            <button class="button-23" role="button" >Track package</button></br>
-            <button class="button-23" role="button" style=" margin-top: 10px; margin-bottom: 10px;">Write a review</button></br>
-            <button class="button-23" role="button">Return item</button>
+        <!-- Order Item -->
+        <div class="order-item d-flex justify-content-between align-items-center">
+            <img src="{{ product.p_image_url }}" alt="Product Image" class="order-img">
+            <div>
+                <p class="order-info">{{ product.p_name }}</p>
+                <p class="order-info">{{ product.p_description }}</p>
+                <p class="order-info">Price: ${{ product.p_price }}</p>
+                <p class="order-info">Payment Date: 9/10/2023</p>
+            </div>
+            <div class="order-actions">
+                <button class="button-23" role="button" >Track package</button></br>
+                <button class="button-23" role="button" style=" margin-top: 10px; margin-bottom: 10px;" onclick="window.location.href='{{ url_for('add_review', product_id=product.p_id) }}'">Write a review</button></br>
+                <button class="button-23" role="button">Return item</button>
+            </div>
         </div>
-    </div>
+    {% else %}
+        <p>No orders found.</p>
     {% endfor %}
 </div>
   

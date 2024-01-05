@@ -108,22 +108,107 @@ def empty_database():
 
 @app.route("/add-review")
 def add_review():
-    return render_template("add-review.html")
+    user_id = session.get('user_id')
+    if user_id:
+        user_data = CustomerTable.query.filter_by(customer_id=user_id).first()
+        if not user_data:
+            return "User data not found", 404
+
+        product_id = request.args.get('product_id')
+        if product_id:
+            product = ProductTable.query.get(product_id)
+            if product:
+                return render_template("add-review.html", user_data=user_data, product=product)
+            else:
+                return "Product not found", 404
+        else:
+            return "Product ID is required", 400
+    else:
+        # Redirect to login if no user is in session
+        return redirect(url_for("show_login"))
+
+    
+    
+@app.route("/submit_review", methods=["POST"])
+def submit_review():
+    product_id = request.form.get('product_id')
+    if product_id:
+        title = request.form['title']
+        description = request.form['description']
+        rating = request.form['rating']
+        
+        # Process image upload if available
+        image = request.files.get('image')
+        if image and image.filename != '':
+            filename = secure_filename(image.filename)
+            image_save_directory = os.path.join(app.static_folder, 'uploads/reviews')
+            os.makedirs(image_save_directory, exist_ok=True)
+
+            image_path = os.path.join(image_save_directory, filename)
+            image.save(image_path)
+
+            image_url = url_for('static', filename=f'uploads/reviews/{filename}')
+        else:
+            image_url = None  # or a default image URL
+
+        new_review = ReviewTable(
+            title=title,
+            description=description,
+            rating=rating,
+            image_url=image_url,
+            customer_id=session.get('user_id'),
+            product_id=product_id
+        )
+        db.session.add(new_review)
+        db.session.commit()
+        return "Review submitted successfully"  # Or redirect to another page
+    else:
+        return "Product ID is required", 400
+
 
 
 @app.route("/order_list")
 def order_list():
     user_id = session.get('user_id')
     if user_id:
-        # Query to find all products associated with the user
-        associated_products = db.session.query(customer_product_association, ProductTable).join(
-            ProductTable, customer_product_association.c.productID == ProductTable.p_id
-        ).filter(customer_product_association.c.customerID == user_id).all()
+        user_data = CustomerTable.query.filter_by(customer_id=user_id).first()
+        if user_data:
+            # Query to find product IDs associated with the user
+            associated_product_ids = db.session.query(customer_product_association.c.productID).filter(
+                customer_product_association.c.customerID == user_id
+            ).all()
 
-        return render_template("order_list.html", products=associated_products)
+            # Fetch the products using the retrieved product IDs
+            product_ids = [pid[0] for pid in associated_product_ids]
+            associated_products = ProductTable.query.filter(ProductTable.p_id.in_(product_ids)).all()
+
+            # Pass both user_data and products to the template
+            return render_template("order_list.html", user_data=user_data, products=associated_products)
+        else:
+            return "User data not found", 404
     else:
-        # Redirect to login if no user is in session
         return redirect(url_for("show_login"))
+
+
+
+@app.route("/search_products", methods=["GET", "POST"])
+def search_products():
+    user_id = session.get('user_id')
+    if user_id:
+        user_data = CustomerTable.query.filter_by(customer_id=user_id).first()
+        if not user_data:
+            return "User data not found", 404
+
+        if request.method == "POST":
+            search_query = request.form.get("searchQueryInput", "")
+            matched_products = ProductTable.query.filter(ProductTable.p_name.like(f"%{search_query}%")).all()
+            return render_template("order_list.html", user_data=user_data, products=matched_products)
+        else:
+            return render_template("order_list.html", user_data=user_data)
+
+    else:
+        return redirect(url_for("show_login"))
+
 
 
 

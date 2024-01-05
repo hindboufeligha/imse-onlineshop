@@ -7,10 +7,10 @@
     <div class="row">
         <div class="col-lg-4">
             <div class="review-img">
-                <img src="../assets/images/men-02.jpg" alt="Norther Lights" style="width:100%">
+                <img src="{{ product.p_image_url }}" alt="{{ product.p_name }}" style="width:100%">
                 <div class="container">
-                    <p>Black Jeans</p>
-                    <p>200 $</p>
+                    <p>{{ product.p_name }}</p>
+                    <p>{{ product.p_price }}</p>
                     <div id="rating">
                         <h5>Rate:</h5>
                         <div class='starrr' id='star1'></div>
@@ -29,20 +29,20 @@
             <div class="container">
                 <div class="row">
                             <p> Upload image or Video</p>
-                        <form id="subscribe" action="" method="get">
+                        <form id="subscribe" action="{{ url_for('submit_review', product_id=product.id) }}" method="POST" enctype="multipart/form-data">
                             <div class="row">
                                <div class="col-lg-5">
                                 <fieldset > 
                                     <label for="photo" class="file-upload-label"> <img src="../assets/images/plus.png" width="100px" hight="100px" > </label>
-                                    <input type="file" id="photo" name="photo" accept="image/*, video/*" class="form-control-file">
+                                    <input type="file" id="photo" name="image" accept="image/*, video/*" class="form-control-file">
 
                                 </fieldset>
                                     <fieldset > 
-                                      
+                                        <input type="hidden" id="hiddenRating" name="rating" placeholder="Rating (1-5)" required min="1" max="5" step="0.1" value="">
                                     <p id="title"> Add Title: </p>
-                                        <input type="text" id="headline" name="headline" placeholder="Your headline here..." class="form-control" style="width:230px;">
+                                        <input type="text" id="headline" name="title" placeholder="Your headline here..." class="form-control" style="width:230px;">
                                     </br>
-                                        <textarea id="message" name="message" rows="4" cols="50" placeholder="Your message ..."></textarea>
+                                        <textarea id="message" name="description" rows="4" cols="50" placeholder="Your message ..."></textarea>
                                     </fieldset>
                                 </div>
 
@@ -51,6 +51,7 @@
 
                                 <div class="col-lg-2" style="margin-top:258px; margin-left:410px; position: absolute;">
                                     <fieldset>
+                                        <input type="hidden" name="product_id" value="{{ product.p_id }}">
                                         <button type="submit" id="form-submit" class="main-dark-button"><i class="fa fa-paper-plane"></i></button>
                                     </fieldset>
                                 </div>
@@ -74,6 +75,7 @@
                     if (value) {
                         $('.your-choice-was').show();
                         $('.choice').text(value);
+                        $('#hiddenRating').val(value);
                     } else {
                         $('.your-choice-was').hide();
                     }
@@ -91,5 +93,7 @@
             ga('create', 'UA-39205841-5', 'dobtco.github.io');
             ga('send', 'pageview');
         </script>
+
+
 
         {% include 'includes/footer.html' %}
