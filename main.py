@@ -169,46 +169,16 @@ def submit_review():
 
 @app.route("/order_list")
 def order_list():
-    user_id = session.get('user_id')
+    user_id = session.get("user_id")
     if user_id:
-        user_data = CustomerTable.query.filter_by(customer_id=user_id).first()
-        if user_data:
-            # Query to find product IDs associated with the user
-            associated_product_ids = db.session.query(customer_product_association.c.productID).filter(
-                customer_product_association.c.customerID == user_id
-            ).all()
+        # Query to find all products associated with the user
+        associated_products = db.session.query(customer_product_association, ProductTable).join(
+            ProductTable, customer_product_association.c.productID == ProductTable.p_id
+        ).filter(customer_product_association.c.customerID == user_id).all()
 
-            # Fetch the products using the retrieved product IDs
-            product_ids = [pid[0] for pid in associated_product_ids]
-            associated_products = ProductTable.query.filter(ProductTable.p_id.in_(product_ids)).all()
-
-            # Pass both user_data and products to the template
-            return render_template("order_list.html", user_data=user_data, products=associated_products)
-        else:
-            return "User data not found", 404
+        return render_template("order_list.html", products=associated_products)
     else:
         return redirect(url_for("show_login"))
-
-
-
-@app.route("/search_products", methods=["GET", "POST"])
-def search_products():
-    user_id = session.get('user_id')
-    if user_id:
-        user_data = CustomerTable.query.filter_by(customer_id=user_id).first()
-        if not user_data:
-            return "User data not found", 404
-
-        if request.method == "POST":
-            search_query = request.form.get("searchQueryInput", "")
-            matched_products = ProductTable.query.filter(ProductTable.p_name.like(f"%{search_query}%")).all()
-            return render_template("order_list.html", user_data=user_data, products=matched_products)
-        else:
-            return render_template("order_list.html", user_data=user_data)
-
-    else:
-        return redirect(url_for("show_login"))
-
 
 
 
@@ -265,23 +235,17 @@ def signup():
         flash("Email already in use. Please choose another email.", "danger")
         return redirect(url_for("show_signup"))
 
-    # Hash the password securely
-    hashed_password = bcrypt.generate_password_hash(password).decode("utf-8")
-
-    # Create a new user
-    new_user = CustomerTable(
+    # Create a new customer:
+    add_customer(
         firstname=firstname,
         familyname=familyname,
         email=email,
         phone_no=phone_no,
         username=username,
-        password=hashed_password,
+        password=password,
     )
 
-    db.session.add(new_user)
-    db.session.commit()
-
-    flash("Account created successfully. You can now log in.", "success")
+    flash("Account created successfully! You can now log-in.", "success")
     return redirect(url_for("show_login"))
 
 
@@ -325,7 +289,6 @@ def products():
     category_name = request.args.get("category_name")
     parent_category_id = request.args.get("parent_category_id")
     p_gender = request.args.get("p_gender")
-    
 
     # Fetch products based on category_name, parent_category_id, and gender
     products_with_categories = (
@@ -362,6 +325,7 @@ def display_products(gender):
 
 
 ### END ###
+
 
 ### Route to display the selected Product details on single-product.html ###
 @app.route("/single-product.html/<product_id>", methods=["GET", "POST"])
@@ -400,9 +364,6 @@ def single_product(product_id):
 
 
 ### END ###
-
-
-
 
 
 ### Rout to display the cart content ###

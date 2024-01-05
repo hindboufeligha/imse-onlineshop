@@ -203,17 +203,41 @@ class WishlistTable(db.Model):
     )
 
 
+def add_customer(firstname, familyname, email, phone_no, username, password):
+    fake = Faker(["de_AT"])
+    hashed_password = bcrypt.hashpw(password.encode(), bcrypt.gensalt())
+    new_customer = CustomerTable(
+        firstname=firstname,
+        familyname=familyname,
+        email=email,
+        phone_no=phone_no,
+        username=username,
+        password=hashed_password,
+    )
+
+    db.session.add(new_customer)
+
+    # fetch all products from db:
+    products = ProductTable.query.all()
+    # num of products to be associated with this customer:
+    num = random.randint(1, min(len(products), 2))
+    # associate:
+    new_customer.products.extend(random.sample(products, num))
+
+    db.session.commit()
+
+
 def initialize_tables(db, count):
     # with app.app_context():
     # 1: Insert random data of Customers into the DB:
     fake = Faker(["de_AT"])  # generate data in Austrian Deutsch
     for _ in range(10):  # 10 customers
         plain_password = fake.password(
-              length=8,
-        special_chars=True,
-        digits=True,
-        upper_case=True,
-        lower_case=True,
+            length=8,
+            special_chars=True,
+            digits=True,
+            upper_case=True,
+            lower_case=True,
         )
         hashed_password = bcrypt.hashpw(plain_password.encode(), bcrypt.gensalt())
 
@@ -387,14 +411,9 @@ def initialize_tables(db, count):
 
     # loop through a subset of customers and randomly associate them with some products
     for customer in customers:
-        # number of products to be added to the wishlist:
+        # number of products to be associated with the customer
         num = random.randint(1, min(len(products), 2))
-        # add products to each wishlist
+        # add products to each customer
         customer.products.extend(random.sample(products, num))
 
     db.session.commit()
-
-
-
-
-
