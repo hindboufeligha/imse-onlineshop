@@ -1,0 +1,19 @@
+
+.review-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: left;
+    margin-bottom: 10px;
+}
+
+.review-rating {
+    background-color: #f8f9fa;
+    padding: 5px 10px;
+    border-radius: 5px;
+    font-weight: bold;
+    margin-left: 270px;
+}
+
+.rating-value {
+    color: #ffdd57;
+}

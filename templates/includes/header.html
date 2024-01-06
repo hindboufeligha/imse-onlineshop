@@ -10,6 +10,7 @@
     <link href="https://fonts.googleapis.com/css?family=Poppins:100,200,300,400,500,600,700,800,900&display=swap"
         rel="stylesheet">
 
+    <link rel="stylesheet" href="../assets/css/reviews.css">
     <link rel="stylesheet" href="../assets/css/add-review.css">
     <link rel="stylesheet" href="../assets/css/order_list.css">
 
@@ -108,6 +109,12 @@ https://templatemo.com/tm-571-hexashop
                                                 <span><b>></b></span>
                                             </a>
 
+                                            <a href="{{ url_for('reviews') }}" class="sub-menu-link">
+                                                <img src="../../assets/images/review.png">
+                                                <p>My Reviews</p>
+                                                <span><b>></b></span>
+                                            </a>
+
                                             <a href="{{ url_for('products') }}" class="sub-menu-link">
                                                 <img src="../../assets/images/wishlist.png">
                                                 <p>My Wishlists</p>
@@ -120,7 +127,7 @@ https://templatemo.com/tm-571-hexashop
                                                 <span><b>></b></span>
                                             </a>
 
-                                            <a href="#" class="sub-menu-link">
+                                            <a href="{{ url_for('logout') }}" class="sub-menu-link">
                                                 <img src="../../assets/images/logout.png">
                                                 <p>Logout</p>
                                                 <span><b>></b></span>

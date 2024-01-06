@@ -341,7 +341,7 @@ header
   line-height: 75px;
 
 }
-
+ 
 .background-header .nav {
   margin-top: 20px !important;
 }
@@ -749,7 +749,7 @@ header
 .sub-menu-wrap {
   position: absolute;
   top: 100%;
-  right: 10%;
+  right: 0.1%;
   width: 240px;
   max-height: 0px;
   overflow: hidden;
@@ -757,7 +757,7 @@ header
 }
 
 .sub-menu-wrap.open-menu {
-  max-height: 440px;
+  max-height: 460px;
 }
 
 .sub-menu {
