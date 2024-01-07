@@ -1827,20 +1827,25 @@ Products Page
 .page-heading {
   margin-top: 160px;
   margin-bottom: 30px;
-  background-image: url(../images/products-page-heading.jpg);
+  background-image: url(../images/retail-blog-header-13.png);
   background-position: center center;
   background-size: cover;
   background-repeat: no-repeat;
+  filter: brightness(70%) contrast(80%) grayscale(20%) saturate(20%);
+  /* Adjust the blur value as needed */
 }
+
+
 
 .page-heading .inner-content {
   padding: 150px 0px;
   text-align: center;
+  z-index: 1;
 }
 
 .page-heading .inner-content h2 {
   font-size: 52px;
-  color: #fff;
+  color: #ffffff;
   font-weight: 700;
   margin-bottom: 15px;
 }
@@ -1848,7 +1853,7 @@ Products Page
 .page-heading .inner-content span {
   font-size: 16px;
   font-weight: 500;
-  color: #fff;
+  color: #ffffff;
   font-style: italic;
 }
 

@@ -90,10 +90,16 @@
                             <h4 style="display: inline;">Total: &nbsp;</h4>
                             <h4 style="display: block;" id="total_price"> {{ product.p_price }}</h4>
                             <h4 style="display: inline;">€</h4>
-                            <div class="main-border-button"><button type="submit">Add To Cart</button></div>
+                            <div class="main-border-button">
+                                <button type="button" onclick="addToCart()">Add To Cart</button>
+
+                            </div>
                         </div>
 
                     </form>
+
+                    <div id="successMessage" style="display: none; color: green;"></div>
+                    <div id="errorMessage" style="display: none; color: red;"></div>
 
                 </div>
             </div>
@@ -185,6 +191,84 @@
         });
     });
 </script>
+
+<!-- Your JavaScript -->
+<script>
+    // when the button is clicked, the addToCart function is triggered. The function creates a JSON payload with the necessary data and sends a POST request to the /add_to_cart endpoint using the fetch API. 
+    function addToCart() {
+
+
+        // Get the selected values from your frontend form
+        var customer_id = parseInt('{{ user_data.customer_id }}'); // the current customer
+        var product_id = parseInt('{{ product.p_id }}');  // the current product
+        var selectedSize = $('#size').val(); // we after will need to find its ID from SizeTable
+        var selectedQuantity = parseInt($('input[name="quantity"]').val(), 10);  // Replace with the actual quantity selected by the customer
+
+        console.log('Customer ID:', customer_id);
+        console.log('Product ID:', product_id);
+        console.log('Size Name:', selectedSize);
+        console.log('Quantity Selected:', selectedQuantity);
+
+        // Create a JSON payload:
+        var payload = {
+            customer_id: customer_id,
+            product_id: product_id,
+            size_name: selectedSize,
+            selected_quantity: selectedQuantity
+        };
+
+        // Make a POST request to the server endpoint:
+        fetch('/add_to_cart', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)
+        })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Failed to add this item to the Cart!');
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log(data.message);
+                // Added Successfully! 
+                showSuccessMessage(data.message)
+            })
+            .catch(error => {
+                console.error(error.message);
+                // Failed!
+
+            });
+
+    }
+
+    function showSuccessMessage(message) {
+        var successMessageElement = document.getElementById('successMessage');
+        successMessageElement.innerText = message;
+        successMessageElement.style.display = 'block';
+
+        // Hide the message after a certain duration:
+        setTimeout(function () {
+            successMessageElement.style.display = 'none';
+        }, 3500);
+
+    }
+
+    function showErrorMessage(message) {
+        // Display the error message to the user
+        var errorMessageElement = document.getElementById('errorMessage');
+        errorMessageElement.innerText = message;
+        errorMessageElement.style.display = 'block';
+
+        setTimeout(function () {
+            errorMessageElement.style.display = 'none';
+        }, 4000);
+    }
+</script>
+
+
 
 
 

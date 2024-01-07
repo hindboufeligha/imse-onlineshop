@@ -1,6 +1,6 @@
 {% include 'includes/header.html' %}
 
- 
+
 <!-- ***** Main Banner Area Start ***** -->
 <div class="main-banner" id="top">
     <div class="container-fluid">
@@ -9,10 +9,11 @@
                 <div class="left-content">
                     <div class="thumb">
                         <div class="inner-content">
-                            <h4>We Are Brand New</h4>
-                            <span>Awesome, clean Awesome, clean </span>
+                            <h4>Most Popular Items of Online Shop </h4>
+                            <span>Discover with us, which items have been recently the most popular in our customers
+                                shopping carts..</span>
                             <div class="main-border-button">
-                                <a href="#">Purchase Now!</a>
+                                <a href="/popular_products">Discover Now!</a>
                             </div>
                         </div>
                         <img src="../assets/images/left-banner-image.jpg" alt="">
@@ -27,14 +28,16 @@
                                 <div class="thumb">
                                     <div class="inner-content">
                                         <h4>Women</h4>
-                                        <span>Best Clothes For Women</span>
+                                        <span>Best items For Women</span>
                                     </div>
                                     <div class="hover-content">
                                         <div class="inner">
                                             <h4>Women</h4>
-                                            <p>Discover more about the products!</p>
+                                            <p>Discover more about these awesome products!</p>
                                             <div class="main-border-button">
-                                                <a href="{{ url_for('display_products', gender='Female') }}">Discover
+                                                <!--<a href="{{ url_for('display_products', gender='Female') }}">Discover
+                                                    More</a>-->
+                                                <a href="/products/Female">Discover
                                                     More</a>
                                             </div>
                                         </div>
@@ -48,14 +51,14 @@
                                 <div class="thumb">
                                     <div class="inner-content">
                                         <h4>Men</h4>
-                                        <span>Best Clothes For Men</span>
+                                        <span>Best items For Men</span>
                                     </div>
                                     <div class="hover-content">
                                         <div class="inner">
                                             <h4>Men</h4>
                                             <p>Dicover more about these Awesome Products!</p>
                                             <div class="main-border-button">
-                                                <a href="{{ url_for('display_products', gender='Male') }}">Discover
+                                                <a href="/products/Male">Discover
                                                     More</a>
                                             </div>
                                         </div>
@@ -69,14 +72,14 @@
                                 <div class="thumb">
                                     <div class="inner-content">
                                         <h4>Kids</h4>
-                                        <span>Best Clothes For Kids</span>
+                                        <span>Best items For Kids</span>
                                     </div>
                                     <div class="hover-content">
                                         <div class="inner">
                                             <h4>Kids</h4>
                                             <p>Dicover more about these Awesome Products!</p>
                                             <div class="main-border-button">
-                                                <a href="{{ url_for('display_products', gender='Children') }}">Discover
+                                                <a href="/products/Children">Discover
                                                     More</a>
                                             </div>
                                         </div>
@@ -122,7 +125,7 @@
             <div class="col-lg-6">
                 <div class="section-heading">
                     <h2>Men's Latest</h2>
-                    <span>Details to details is what makes ONLINESHOP different from the other themes.</span>
+                    <span>Details to details is what makes ONLINESHOP different from other brands.</span>
                 </div>
             </div>
         </div>
@@ -239,8 +242,8 @@
             <div class="col-lg-12">
 
                 <div class="see-all-products">
-                    <a href="{{ url_for('psubcategory',p_gender='Male') }}"> <button class="button-57"
-                            role="button"><span class="text">See All Products</span><span>MEN</span></button></a>
+                    <a href="/products/Male"> <button class="button-57" role="button"><span class="text">See All
+                                Products</span><span>MEN</span></button></a>
                 </div>
             </div>
         </div>
@@ -256,7 +259,7 @@
             <div class="col-lg-6">
                 <div class="section-heading">
                     <h2>Women's Latest</h2>
-                    <span>Details to details is what makes ONLINESHOP different from the other themes.</span>
+                    <span>Details to details is what makes ONLINESHOP different from other brands.</span>
                 </div>
             </div>
         </div>
@@ -369,8 +372,8 @@
             <div class="col-lg-12">
 
                 <div class="see-all-products">
-                    <a href="{{ url_for('psubcategory', p_gender='Female') }}"> <button class="button-57"
-                            role="button"><span class="text">See All Products</span><span>WOMEN</span></button></a>
+                    <a href="/products/Female"> <button class="button-57" role="button"><span class="text">See All
+                                Products</span><span>WOMEN</span></button></a>
                 </div>
             </div>
         </div>
@@ -385,7 +388,7 @@
             <div class="col-lg-6">
                 <div class="section-heading">
                     <h2>Kid's Latest</h2>
-                    <span>Details to details is what makes ONLINESHOP different from the other themes.</span>
+                    <span>Details to details is what makes ONLINESHOP different from other brands.</span>
                 </div>
             </div>
         </div>
@@ -499,8 +502,8 @@
             <div class="col-lg-12">
 
                 <div class="see-all-products">
-                    <a href="{{ url_for('psubcategory', p_gender='Children') }}"> <button class="button-57"
-                            role="button"><span class="text">See All Products</span><span>CHILDREN</span></button></a>
+                    <a href="/products/Children"> <button class="button-57" role="button"><span class="text">See All
+                                Products</span><span>CHILDREN</span></button></a>
                 </div>
             </div>
         </div>
@@ -691,7 +694,7 @@
                 <div class="row">
                     <div class="col-6">
                         <ul>
-                            <li>Store Location:<br><span>wiesselgasse, FL 1121, Austeria</span></li>
+                            <li>Store Location:<br><span>wiesselgasse, FL 1121, Austria</span></li>
                             <li>Phone:<br><span>00340-020-0340</span></li>
                             <li>Office Location:<br><span>21 Wien</span></li>
                         </ul>

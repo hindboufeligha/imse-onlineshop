@@ -1,12 +1,13 @@
 {% include 'includes/header.html' %}
 
+
 <!-- ***** Main Banner Area Start ***** -->
 <div class="page-heading" id="top">
     <div class="container">
         <div class="row">
             <div class="col-lg-12">
                 <div class="inner-content">
-                    <h2>Check Our Products</h2>
+                    <h2>Check the most popular products</h2>
                     <span>Awesome and creative designs from our designers.</span>
                 </div>
             </div>
@@ -21,14 +22,12 @@
         <div class="row">
             <div class="col-lg-12">
                 <div class="section-heading">
-                    <h2>Our Latest {{ product.p_gender if category else '' }} Products</h2>
+                    <h2>Our Latest Popular Products</h2>
                     <!--<span>Check out all of our products.</span>-->
                 </div>
             </div>
         </div>
     </div>
-
-
 
     <!-- ***** Products Area Starts ***** -->
     <div class="container">
@@ -38,13 +37,13 @@
                 <div class="item">
                     <!-- Product Image -->
                     <div class="thumb">
-                        <img src="{{ product.p_image_url }}" alt="{{ product.p_name }}" class="img-fluid">
+                        <img src="{{ product.product_image_url }}" alt="{{ product.product_name }}" class="img-fluid">
                         <!-- Hover Content for additional actions -->
                         <div class="hover-content">
                             <ul>
-                                <li><a href="{{ url_for('single_product', product_id=product.p_id) }}"><i
+                                <li><a href="{{ url_for('single_product', product_id=product.product_id) }}"><i
                                             class="fa fa-eye"></i></a></li>
-                                <li><a href="{{ url_for('add_review', product_id=product.p_id) }}"><i
+                                <li><a href="{{ url_for('add_review', product_id=product.product_id) }}"><i
                                             class="fa fa-star"></i></a></li>
                                 <li><a href="{{ url_for('cart_display') }}"><i class="fa fa-shopping-cart"></i></a></li>
                             </ul>
@@ -52,12 +51,12 @@
                     </div>
                     <!-- Product Details -->
                     <div class="down-content">
-                        <h4>{{ product.p_name }}</h4>
-                        <span>{{ product.p_price }} €</span>
+                        <h4>{{ product.product_name }}</h4>
+                        <span>{{ product.product_price }} €</span>
                         <!--<p>{{ product.p_description }}</p>-->
                         <!--<button onclick="addToCart('{{ product.name }}', '{{ product.id }}', '{{ gender }}')">Add to
                             Cart</button>-->
-                        <!-- Rating Display (if available) -->
+                        <!-- Rating Display (if available)
                         <ul class="stars">
                             <li><i class="fa fa-star"></i></li>
                             <li><i class="fa fa-star"></i></li>
@@ -65,6 +64,7 @@
                             <li><i class="fa fa-star"></i></li>
                             <li><i class="fa fa-star"></i></li>
                         </ul>
+                    -->
                     </div>
                 </div>
             </div>
@@ -98,4 +98,56 @@
 </section>
 <!-- ***** Products Area Ends ***** -->
 
+
+
+<div class="container mt-5">
+    <h2></h2>
+    <h2></h2>
+    <h2>Most Popular Products</h2>
+
+    <table class="table" id="cartTable">
+
+        <thead>
+            <tr>
+                <th>Category ID</th>
+                <th>Product ID</th>
+                <th>Product Name</th>
+                <th>Total Quantity</th>
+                <th>Cart Item Count</th>
+                <th>Customer Count</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for product in products %}
+            <tr>
+                <td>{{ product.category_id }}</td>
+                <td>{{ product.product_id}}</td>
+                <td>{{ product.product_name }}</td>
+                <td>{{ product.total_quantity }}</td>
+                <td>{{ product.cart_item_count }}</td>
+                <td>{{ product.customer_count}}</td>
+
+            </tr>
+
+            {% endfor %}
+            <!-- Hidden element to store serialized JSON data -->
+
+        </tbody>
+
+
+
+
+    </table>
+
+
+</div>
+
+
+
 {% include 'includes/footer.html' %}
+
+
+
+</body>
+
+</html>

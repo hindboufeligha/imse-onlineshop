@@ -2,40 +2,79 @@
 
 <div class="container mt-5">
     <h2>Shopping Cart</h2>
-    <table class="table">
+    {% if items %}
+    <table class="table" id="cartTable">
+
+
         <thead>
             <tr>
                 <th>Item</th>
                 <th>Size</th>
                 <th>Quantity</th>
+                <th>Price</th>
                 <th>Total Price</th>
             </tr>
         </thead>
         <tbody>
-            <!-- Item 1 -->
+            {% for item in items %}
             <tr>
-                <td>Product 1</td>
-                <td>Medium</td>
-                <td>2</td>
-                <td>$20.00</td>
+                <td>{{ item.p_name }}</td>
+                <td>{{ item.size_name }}</td>
+                <td><span class="quantity">{{ item.quantity }}</span></td>
+                <td><span class="item-price">{{ item.p_price }} €</span></td>
+                <td><span class="total-price" id="total_price"></span></td>
+
             </tr>
-            <!-- Item 2 -->
-            <tr>
-                <td>Product 2</td>
-                <td>Large</td>
-                <td>1</td>
-                <td>$15.00</td>
-            </tr>
-            <!-- Add more items as needed -->
+
+            {% endfor %}
+            <!-- Hidden element to store serialized JSON data -->
+            <div id="cartItemsData" data-cart-items="{{ items | tojson | safe }}"></div>
 
         </tbody>
         <tfoot>
             <tr>
-                <td colspan="3" class="text-right"><strong>Total Price:</strong></td>
-                <td><strong>$35.00</strong></td>
+                <td colspan="3" class="text-right"><strong>Total Cost:</strong></td>
+                <td><strong>35.00 €</strong></td>
             </tr>
         </tfoot>
+
+
+
     </table>
+
+
+    {% else %}
+
+    <h3
+        style="text-align: center; font-weight: bold; font-size: 22px; margin-top: 100px; margin-bottom: 20px; padding: 10px;">
+        Oupss! Your shopping cart is empty!</h3>
+
+    <p style="text-align: center; font-weight: normal; font-size: 16px; margin: 10px; padding: 10px;">
+        Wanna take a look at our popular products?
+    </p>
+
+    <p style="text-align: center; font-weight: normal; font-size: 16px; padding: 10px;">
+        <a href="/popular_products">Click Here!</a>
+
+        <style>
+            /* Add some basic styling for the link */
+            a {
+                text-decoration: none;
+                color: #3498db;
+                font-weight: normal;
+                transition: color 0.3s ease;
+            }
+
+            /* Add a hover effect to change the text color on hover */
+            a:hover {
+                color: #5b2c55;
+            }
+        </style>
+
+    </p>
+
+
+    {% endif %}
 </div>
 
 {% include 'includes/footer.html' %}
@@ -92,6 +131,35 @@
 
 </script>
 
+
+<script>
+    // JavaScript code to fetch and update cart items
+    fetch('/cart')  // Replace with the actual endpoint for getting cart items
+        .then(response => response.json())
+        .then(cartItems => {
+            // Process the received cart items and update the table
+            updateCartTable(cartItems);
+        })
+        .catch(error => {
+            console.error('Error fetching cart items:', error);
+        });
+
+    function updateCartTable(cartItems) {
+        var tableBody = document.getElementById('cartTable').querySelector('tbody');
+
+        cartItems.forEach(function (cartItem) {
+            var row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${cartItem.p_name}</td>
+                <td>${cartItem.size_name}</td>
+                <td><span class="quantity">${cartItem.quantity}</span></td>
+                <td><span class="item-price">${cartItem.p_price} €</span></td>
+                <td><span class="total-price"></span></td>
+            `;
+            tableBody.appendChild(row);
+        });
+    }
+</script>
 
 
 
