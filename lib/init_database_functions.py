@@ -317,8 +317,10 @@ def initialize_tables(db, count):
             db.session.commit()
 
     fake = Faker(["de_AT"])
+    # Fetch all customers for associating with reviews
+    customers = CustomerTable.query.all()
     # 3: Generate 10 Products:
-    for _ in range(10):  # 10 products
+    for _ in range(20):  # 10 products
         # categories_sizes = {
         # "Shoes": ["37", "38", "39", "40"],
         # "Clothing": ["S", "M", "L", "XL"],
@@ -389,6 +391,23 @@ def initialize_tables(db, count):
                 "No sub-category available! Skip the product creation in this iteration."
             )
 
+
+    for product in ProductTable.query.all():
+        # Determine the number of reviews to create for each product
+        num_reviews = fake.random_int(min=2, max=8)
+        for _ in range(num_reviews):
+            customer = random.choice(customers)
+            new_review = ReviewTable(
+                title=fake.sentence(),
+                description=fake.text(),
+                image_url=fake.image_url(),
+                rating=round(random.uniform(1, 5), 1),  # Random rating between 1 and 5
+                post_date=fake.date_time_between(start_date='-1y', end_date='now'),
+                customer_id=customer.customer_id,
+                product_id=product.p_id
+            )
+            db.session.add(new_review)
+            
     # FUNC: randomly add products to wishlists
     # fetch all products and wishlists from DB:
     products = ProductTable.query.all()
