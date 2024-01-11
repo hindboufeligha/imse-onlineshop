@@ -79,3 +79,73 @@ def addToCart(customer_id, request, db):
         db.session.add(new_cart_item)
 
     db.session.commit()
+
+
+def displayCartItems(customer_id, db):
+    # fetch the cart_items associated with this customer:
+    # fetch the p_price from ProductTable
+    # fetch all the cartitems of the current Active cart (size, quantity)
+    # and then calculate the total cost for each size and product
+    # first, check if the customer has an Active cart or not:
+    cart = CartTable.query.filter_by(customer_id=customer_id, status="Active").first()
+
+    if cart is not None:  # there is an active cart
+        # check if the product with the same size is already in the cart for the customer:
+
+        existing_cart_items = CartItemTable.query.filter_by(cart_id=cart.cart_id).all()
+
+        cart_items = (
+            db.session.query(
+                ProductTable.p_id,
+                ProductTable.p_name,
+                ProductTable.p_price,
+                CartItemTable.size,
+                CartItemTable.quantity,
+            )
+            .join(CartItemTable, CartItemTable.product_id == ProductTable.p_id)
+            .join(CartTable, CartTable.cart_id == CartItemTable.cart_id)
+            .join(
+                CustomerTable,
+                CustomerTable.customer_id == CartTable.customer_id,
+            )
+            .filter(
+                CustomerTable.customer_id == customer_id,
+                CartTable.status == "Active",
+            )
+        )
+
+        # Convert the query result to a list of dictionaries
+        cart_items_quantity_price = [
+            {
+                "p_id": item.p_id,
+                "p_name": item.p_name,
+                "size_name": item.size,
+                "quantity": item.quantity,
+                "p_price": float(item.p_price),  # Convert to float if needed
+            }
+            for item in cart_items
+        ]
+
+    else:  # if the customer does not have any active cart
+        cart_items = (
+            db.session.query(
+                ProductTable.p_id,
+                ProductTable.p_name,
+                ProductTable.p_price,
+                CartItemTable.size,
+                CartItemTable.quantity,
+            )
+            .join(CartItemTable, CartItemTable.product_id == ProductTable.p_id)
+            .join(CartTable, CartTable.cart_id == CartItemTable.cart_id)
+            .join(
+                CustomerTable,
+                CustomerTable.customer_id == CartTable.customer_id,
+            )
+            .filter(
+                CustomerTable.customer_id == customer_id,
+                CartTable.status == "Active",
+            )
+        )
+
+    # Render the products page with the user's data and empty cart_items:
+    return cart_items

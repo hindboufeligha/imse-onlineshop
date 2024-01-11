@@ -514,107 +514,33 @@ def single_product(product_id):
 ### Route to display the Cart's Content ###
 @app.route("/cart")
 def cart_display():
-    user_id = session.get("user_id")
+    customer_id = session.get("user_id")
 
-    if user_id:
-        user_data = CustomerTable.query.filter_by(customer_id=user_id).first()
+    if customer_id:
+        user_data = CustomerTable.query.filter_by(customer_id=customer_id).first()
+
         if user_data:
-            # fetch the cart_items associated with this customer:
-            # fetch the p_price from ProductTable
-            # fetch all the cartitems of the current Active cart (size, quantity)
-            # and then calculate the total cost for each size and product
-            # first, check if the customer has an Active cart or not:
-            cart = CartTable.query.filter_by(
-                customer_id=user_id, status="Active"
-            ).first()
+            cart_items = displayCartItems(customer_id, db)
 
-            if cart is not None:  # there is an active cart
-                # check if the product with the same size is already in the cart for the customer:
+            # Convert the query result to a list of dictionaries
+            cart_items_quantity_price = [
+                {
+                    "p_id": item.p_id,
+                    "p_name": item.p_name,
+                    "size_name": item.size,
+                    "quantity": item.quantity,
+                    "p_price": float(item.p_price),  # Convert to float if needed
+                }
+                for item in cart_items
+            ]
 
-                existing_cart_items = CartItemTable.query.filter_by(
-                    cart_id=cart.cart_id
-                ).all()
-
-                cart_items = (
-                    db.session.query(
-                        ProductTable.p_id,
-                        ProductTable.p_name,
-                        ProductTable.p_price,
-                        CartItemTable.size,
-                        CartItemTable.quantity,
-                    )
-                    .join(CartItemTable, CartItemTable.product_id == ProductTable.p_id)
-                    .join(CartTable, CartTable.cart_id == CartItemTable.cart_id)
-                    .join(
-                        CustomerTable,
-                        CustomerTable.customer_id == CartTable.customer_id,
-                    )
-                    .filter(
-                        CustomerTable.customer_id == user_id,
-                        CartTable.status == "Active",
-                    )
-                )
-
-                # Convert the query result to a list of dictionaries
-                cart_items_quantity_price = [
-                    {
-                        "p_id": item.p_id,
-                        "p_name": item.p_name,
-                        "size_name": item.size,
-                        "quantity": item.quantity,
-                        "p_price": float(item.p_price),  # Convert to float if needed
-                    }
-                    for item in cart_items
-                ]
-
-                # Render the products page with the user's data and cart_items:
-                return render_template(
-                    "cart.html",
-                    user_data=user_data,
-                    cart_items=cart_items,
-                    items=cart_items_quantity_price,
-                )
-
-            else:  # if the customer does not have any active cart
-                cart_items = (
-                    db.session.query(
-                        ProductTable.p_id,
-                        ProductTable.p_name,
-                        ProductTable.p_price,
-                        CartItemTable.size,
-                        CartItemTable.quantity,
-                    )
-                    .join(CartItemTable, CartItemTable.product_id == ProductTable.p_id)
-                    .join(CartTable, CartTable.cart_id == CartItemTable.cart_id)
-                    .join(
-                        CustomerTable,
-                        CustomerTable.customer_id == CartTable.customer_id,
-                    )
-                    .filter(
-                        CustomerTable.customer_id == user_id,
-                        CartTable.status == "Active",
-                    )
-                )
-
-                # Convert the query result to a list of dictionaries
-                cart_items_quantity_price = [
-                    {
-                        "p_id": item.p_id,
-                        "p_name": item.p_name,
-                        "size_name": item.size,
-                        "quantity": item.quantity,
-                        "p_price": float(item.p_price),  # Convert to float if needed
-                    }
-                    for item in cart_items
-                ]
-
-                # Render the products page with the user's data and empty cart_items:
-                return render_template(
-                    "cart.html",
-                    user_data=user_data,
-                    cart_items=cart_items,
-                    items=cart_items_quantity_price,
-                )
+            # Render the products page with the user's data and cart_items:
+            return render_template(
+                "cart.html",
+                user_data=user_data,
+                cart_items=cart_items,
+                items=cart_items_quantity_price,
+            )
 
     # return render_template("cart.html")
 
