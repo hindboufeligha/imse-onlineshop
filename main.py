@@ -437,31 +437,27 @@ def products():
     category_name = request.args.get("category_name")
     parent_category_id = request.args.get("parent_category_id")
     p_gender = request.args.get("p_gender")
+    customer_id = session.get("user_id")
 
-    # Fetch products based on category_name, parent_category_id, and gender
-    products_with_categories = (
-        db.session.query(ProductTable)
-        .join(CategoryTable, ProductTable.category_id == CategoryTable.category_id)
-        .filter(
-            CategoryTable.category_name == category_name,
-            ProductTable.p_gender == p_gender,
-        )
-        .all()
-    )
-
-    return render_template(
-        "products.html",
-        products_with_categories=products_with_categories,
-        category_name=category_name,
-        p_gender=p_gender,
-    )
+    if customer_id:
+        user_data = CustomerTable.query.filter_by(customer_id=customer_id).first()
+        if user_data:
+            # Fetch products based on category_name, parent_category_id, and gender
+            products_with_categories = displayProducts(request, db)
+            return render_template(
+                "products.html",
+                products_with_categories=products_with_categories,
+                user_data=user_data,
+                category_name=category_name,
+                p_gender=p_gender,
+            )
 
 
 ### Display Products based on the gender in products.html ###
 # from index, when the user clicks on discover --> depends on the gender --> will be redirected to this page products.html
 @app.route("/products/<gender>")
 def display_products(gender):
-    products = ProductTable.query.filter_by(p_gender=gender).all()
+    products = displayGenderProducts(gender, db)
     user_id = session.get("user_id")
     if user_id:
         user_data = CustomerTable.query.filter_by(customer_id=user_id).first()
@@ -478,20 +474,9 @@ def display_products(gender):
 ### Route to display the selected Product details on single-product.html ###
 @app.route("/single-product.html/<product_id>", methods=["GET", "POST"])
 def single_product(product_id):
-    product = ProductTable.query.get(product_id)
-
+    product = fetchProductData(product_id, db)
     if request.method == "GET":
-        # Fetch sizes and quantities based on the product_id from SizeTable and product_size_association join table
-        sizes_quantities = (
-            db.session.query(SizeTable.size_name, product_size_association.c.quantity)
-            .join(product_size_association)
-            .filter(product_size_association.c.p_id == product_id)
-            .all()
-        )
-
-        sizes = [
-            {"name": size, "quantity": quantity} for size, quantity in sizes_quantities
-        ]
+        sizes = displaySingleProduct(product_id, request, db)
 
     elif request.method == "POST":
         # selected_size = request.form.get("size")
@@ -502,9 +487,9 @@ def single_product(product_id):
         add_to_cart()
         return redirect(url_for("cart_display"))
 
-    user_id = session.get("user_id")
-    if user_id:
-        user_data = CustomerTable.query.filter_by(customer_id=user_id).first()
+    customer_id = session.get("user_id")
+    if customer_id:
+        user_data = fetchCustomerData(customer_id, db)
         if user_data:
             return render_template(
                 "single-product.html", user_data=user_data, product=product, sizes=sizes
@@ -520,8 +505,7 @@ def cart_display():
     customer_id = session.get("user_id")
 
     if customer_id:
-        user_data = CustomerTable.query.filter_by(customer_id=customer_id).first()
-
+        user_data = fetchCustomerData(customer_id, db)
         if user_data:
             cart_items = displayCartItems(customer_id, db)
 
@@ -544,8 +528,6 @@ def cart_display():
                 cart_items=cart_items,
                 items=cart_items_quantity_price,
             )
-
-    # return render_template("cart.html")
 
 
 ### END ###
@@ -582,72 +564,16 @@ def add_to_cart():
 ### Route to the most Popular Products in each Category within the last 6 month ###
 @app.route("/popular_products")
 def popular_products():
-    user_id = session.get("user_id")
+    customer_id = session.get("user_id")
 
-    if user_id:
-        user_data = CustomerTable.query.filter_by(customer_id=user_id).first()
-
-        six_months_ago = datetime.utcnow() - timedelta(days=180)
-
-        subquery = (
-            db.session.query(
-                ProductTable.category_id,
-                ProductTable.p_id,
-                ProductTable.p_name,
-                ProductTable.p_image_url,
-                ProductTable.p_price,
-                func.sum(CartItemTable.quantity).label("total_quantity"),
-                func.count(CartItemTable.cart_item_id).label("cart_item_count"),
-                func.count(CartTable.customer_id.distinct()).label("customer_count"),
-                func.row_number()
-                .over(
-                    partition_by=ProductTable.category_id,
-                    order_by=func.count(CartItemTable.quantity).desc(),
-                )
-                .label("rank"),
-            )
-            .join(CartItemTable, ProductTable.p_id == CartItemTable.product_id)
-            .join(CartTable, CartItemTable.cart_id == CartTable.cart_id)
-            .filter(CartTable.creation_date >= six_months_ago)
-            .group_by(ProductTable.category_id, ProductTable.p_id)
-        ).subquery()
-
-        popular_products_query = (
-            db.session.query(
-                subquery.c.category_id,
-                subquery.c.p_id,
-                subquery.c.p_name,
-                subquery.c.p_image_url,
-                subquery.c.p_price,
-                subquery.c.total_quantity,
-                subquery.c.cart_item_count,
-                subquery.c.customer_count,
-            )
-            .filter(text("rank == 1"))
-            .all()
-        )
-
-        # Process the results as needed, e.g., return them as JSON
-        result_data = [
-            {
-                "category_id": category_id,
-                "product_id": product_id,
-                "product_name": product_name,
-                "product_image_url": product_image_url,
-                "product_price": product_price,
-                "total_quantity": total_quantity,
-                "cart_item_count": cart_item_count,
-                "customer_count": customer_count,
-            }
-            for category_id, product_id, product_name, product_image_url, product_price, total_quantity, cart_item_count, customer_count in popular_products_query
-        ]
-
-        # return {'data': result_data}
+    if customer_id:
+        customer_data = fetchCustomerData(customer_id, db)
+        popular_products = displayPopularProducts(db)
 
         return render_template(
             "popular_products.html",
-            user_data=user_data,
-            products=result_data,
+            user_data=customer_data,
+            products=popular_products,
         )
 
 
