@@ -23,6 +23,7 @@ customer_product_association = db.Table(
     db.Column("customerID", db.Integer, db.ForeignKey("customer_table.customer_id")),
     db.Column("productID", db.Integer, db.ForeignKey("product_table.p_id")),
     # date of order
+    db.Column("order_date", db.DateTime, nullable=False, default=datetime.utcnow),
 )
 # association table for Wishlist and Product
 wishlist_product_association = db.Table(

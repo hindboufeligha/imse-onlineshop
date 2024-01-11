@@ -42,6 +42,9 @@ app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 app.config["UPLOAD_FOLDER"] = "assets/images"
 
+app.config["MONGO_URI"] = "mongodb://localhost:27017/imse_m2"
+mongo = PyMongo(app)
+
 
 # Explicitly set the template folder
 # app.template_folder = "templates"
