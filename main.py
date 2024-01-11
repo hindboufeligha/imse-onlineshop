@@ -440,7 +440,7 @@ def products():
     customer_id = session.get("user_id")
 
     if customer_id:
-        user_data = CustomerTable.query.filter_by(customer_id=customer_id).first()
+        user_data = fetchCustomerData(customer_id, db)
         if user_data:
             # Fetch products based on category_name, parent_category_id, and gender
             products_with_categories = displayProducts(request, db)
@@ -458,9 +458,10 @@ def products():
 @app.route("/products/<gender>")
 def display_products(gender):
     products = displayGenderProducts(gender, db)
-    user_id = session.get("user_id")
-    if user_id:
-        user_data = CustomerTable.query.filter_by(customer_id=user_id).first()
+    customer_id = session.get("user_id")
+
+    if customer_id:
+        user_data = fetchCustomerData(customer_id, db)
         if user_data:
             # Render the products page with the user's data
             return render_template(

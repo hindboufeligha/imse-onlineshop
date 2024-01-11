@@ -260,3 +260,6 @@ def fetchCustomerData(customer_id, db):
 def fetchProductData(product_id, db):
     product = ProductTable.query.get(product_id)
     return product
+
+
+# comment
