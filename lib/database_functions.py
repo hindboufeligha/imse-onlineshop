@@ -31,6 +31,119 @@ from flask_pymongo import PyMongo
 from bson import ObjectId
 
 
+
+def get_user_reviews(user_id):
+    user_data = CustomerTable.query.filter_by(customer_id=user_id).first()
+    
+    if user_data:
+        user_reviews = ReviewTable.query.filter_by(customer_id=user_id).all()
+    else:
+        user_reviews = None
+
+    return user_reviews, user_data
+
+
+
+def search_for_reviews(search_query):
+    return ReviewTable.query.filter(
+        ReviewTable.title.like(f"%{search_query}%")
+    ).all()
+
+
+
+def delete_user_review(review_id):
+    review = ReviewTable.query.get(review_id)
+    if review:
+        db.session.delete(review)
+        db.session.commit()
+        return 200, "Review deleted successfully"
+    else:
+        return 404, "Review not found"
+
+
+
+def get_user_data(user_id):
+    return CustomerTable.query.filter_by(customer_id=user_id).first()
+
+def get_product(product_id):
+    return ProductTable.query.get(product_id)
+
+def get_or_create_review(user_id, product_id, title=None, description=None, rating=None, get_only=False):
+    review = ReviewTable.query.filter_by(customer_id=user_id, product_id=product_id).first()
+    if get_only:
+        return review
+
+    if review:
+        review.title = title
+        review.description = description
+        review.rating = rating
+        review.post_date = datetime.utcnow()
+    else:
+        new_review = ReviewTable(
+            title=title,
+            description=description,
+            rating=rating,
+            post_date=datetime.utcnow(),
+            customer_id=user_id,
+            product_id=product_id,
+        )
+        db.session.add(new_review)
+
+    db.session.commit()
+
+
+
+def submit_or_update_review(user_id, product_id, title, description, rating, image_url):
+    existing_review = ReviewTable.query.filter_by(
+        customer_id=user_id, product_id=product_id
+    ).first()
+
+    if existing_review:
+        # Update the existing review
+        existing_review.title = title
+        existing_review.description = description
+        existing_review.rating = rating
+        existing_review.image_url = image_url
+    else:
+        # Create a new review
+        new_review = ReviewTable(
+            title=title,
+            description=description,
+            rating=rating,
+            image_url=image_url,
+            customer_id=user_id,
+            product_id=product_id,
+        )
+        db.session.add(new_review)
+
+    db.session.commit()
+
+
+
+def get_associated_products(user_id):
+    # Query to find product IDs associated with the user
+    associated_product_ids = (
+        db.session.query(customer_product_association.c.productID)
+        .filter(customer_product_association.c.customerID == user_id)
+        .all()
+    )
+
+    # Fetch the products using the retrieved product IDs
+    product_ids = [pid[0] for pid in associated_product_ids]
+    return ProductTable.query.filter(
+        ProductTable.p_id.in_(product_ids)
+    ).all()
+
+
+
+def search_for_products(search_query):
+    return ProductTable.query.filter(
+        ProductTable.p_name.like(f"%{search_query}%")
+    ).all()
+
+
+
+
 def addToCart(customer_id, request, db):
     product_id = request.json["product_id"]
     # print("product ID:", product_id)

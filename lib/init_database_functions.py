@@ -395,7 +395,7 @@ def initialize_tables(db, count):
 
     for product in ProductTable.query.all():
         # Determine the number of reviews to create for each product
-        num_reviews = fake.random_int(min=2, max=8)
+        num_reviews = fake.random_int(min=2, max=3)
         for _ in range(num_reviews):
             customer = random.choice(customers)
             new_review = ReviewTable(

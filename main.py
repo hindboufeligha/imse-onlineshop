@@ -115,33 +115,29 @@ def empty_database():
     return redirect(url_for("DB_operation"))
 
 
+
+#organized review codes
 @app.route("/my_reviews")
 def reviews():
     user_id = session.get("user_id")
     if user_id:
-        user_data = CustomerTable.query.filter_by(customer_id=user_id).first()
+        user_reviews, user_data = get_user_reviews(user_id)
         if not user_data:
-            # Handle case where user data is not found
             return "User data not found", 404
-
-        user_reviews = ReviewTable.query.filter_by(customer_id=user_id).all()
+        
         return render_template(
             "reviews.html", reviews=user_reviews, user_data=user_data
         )
     else:
-        # Redirect to login if no user is in session
         return redirect(url_for("show_login"))
+
 
 
 @app.route("/delete_review/<int:review_id>", methods=["POST"])
 def delete_review(review_id):
-    review = ReviewTable.query.get(review_id)
-    if review:
-        db.session.delete(review)
-        db.session.commit()
-        return jsonify({"message": "Review deleted successfully"}), 200
-    else:
-        return jsonify({"message": "Review not found"}), 404
+    result, message = delete_user_review(review_id)
+    return jsonify({"message": message}), result
+
 
 
 @app.route("/add-review/<int:product_id>", methods=["GET", "POST"])
@@ -150,48 +146,30 @@ def add_review(product_id):
     if not user_id:
         return redirect(url_for("show_login"))
 
-    user_data = CustomerTable.query.filter_by(customer_id=user_id).first()
+    user_data = get_user_data(user_id)
     if not user_data:
         flash("User data not found", "error")
         return redirect(url_for("index"))
 
-    product = ProductTable.query.get(product_id)
+    product = get_product(product_id)
     if not product:
         flash("Product not found", "error")
         return redirect(url_for("index"))
-
-    existing_review = ReviewTable.query.filter_by(
-        customer_id=user_id, product_id=product_id
-    ).first()
 
     if request.method == "POST":
         title = request.form.get("title")
         description = request.form.get("description")
         rating = float(request.form.get("rating"))
 
-        if existing_review:
-            existing_review.title = title
-            existing_review.description = description
-            existing_review.rating = rating
-            existing_review.post_date = datetime.utcnow()
-        else:
-            new_review = ReviewTable(
-                title=title,
-                description=description,
-                rating=rating,
-                post_date=datetime.utcnow(),
-                customer_id=user_id,
-                product_id=product_id,
-            )
-            db.session.add(new_review)
-
-        db.session.commit()
+        get_or_create_review(user_id, product_id, title, description, rating)
         flash("Review saved successfully", "success")
         return redirect(url_for("reviews"))
 
+    existing_review = get_or_create_review(user_id, product_id, get_only=True)
     return render_template(
         "add-review.html", user_data=user_data, product=product, review=existing_review
     )
+
 
 
 @app.route("/submit_review", methods=["POST"])
@@ -200,15 +178,14 @@ def submit_review():
     title = request.form.get("title")
     description = request.form.get("description")
     rating = request.form.get("rating")
-    product_id = request.form.get(
-        "product_id"
-    )  # Ensure this hidden field is in your form
+    product_id = request.form.get("product_id")  # Ensure this hidden field is in your form
 
     if not product_id:
         return "Product ID is required", 400
 
     # Process image upload if available
     image = request.files.get("image")
+    image_url = None
     if image and image.filename != "":
         filename = secure_filename(image.filename)
         image_save_directory = os.path.join(app.static_folder, "uploads/reviews")
@@ -218,87 +195,74 @@ def submit_review():
         image.save(image_path)
 
         image_url = url_for("static", filename=f"uploads/reviews/{filename}")
-    else:
-        image_url = None  # Handle the case when no image is uploaded
 
-    # Check for existing review
-    existing_review = ReviewTable.query.filter_by(
-        customer_id=session.get("user_id"), product_id=product_id
-    ).first()
+    user_id = session.get("user_id")
+    submit_or_update_review(user_id, product_id, title, description, rating, image_url)
 
-    if existing_review:
-        # Update the existing review
-        existing_review.title = title
-        existing_review.description = description
-        existing_review.rating = rating
-        existing_review.image_url = image_url  # Update image logic as necessary
-        db.session.commit()
-    else:
-        # Create a new review
-        new_review = ReviewTable(
-            title=title,
-            description=description,
-            rating=rating,
-            image_url=image_url,
-            customer_id=session.get("user_id"),
-            product_id=product_id,
+    flash("success", "Review submitted successfully")  # Flash a success message
+    return redirect(url_for("reviews"))
+
+
+
+@app.route("/search_reviews", methods=["POST"])
+def search_reviews():
+    search_query = request.form.get("searchQueryInput", "")
+    user_id = session.get("user_id")
+
+    if not user_id:
+        return redirect(url_for("show_login"))
+    
+    user_data = get_user_data(user_id)
+    if not user_data:
+        return "User data not found", 404
+    
+    if request.method == "POST":
+        search_query = request.form.get("searchQueryInput", "")
+        matched_reviews = search_for_reviews(search_query)
+        return render_template(
+            "reviews.html", user_data=user_data, reviews=matched_reviews
         )
-        db.session.add(new_review)
-        db.session.commit()
+    else:
+        return render_template("order_list.html", user_data=user_data)
 
-    return "Review submitted successfully"
 
 
 @app.route("/order_list")
 def order_list():
     user_id = session.get("user_id")
-    if user_id:
-        user_data = CustomerTable.query.filter_by(customer_id=user_id).first()
-        if user_data:
-            # Query to find product IDs associated with the user
-            associated_product_ids = (
-                db.session.query(customer_product_association.c.productID)
-                .filter(customer_product_association.c.customerID == user_id)
-                .all()
-            )
-
-            # Fetch the products using the retrieved product IDs
-            product_ids = [pid[0] for pid in associated_product_ids]
-            associated_products = ProductTable.query.filter(
-                ProductTable.p_id.in_(product_ids)
-            ).all()
-
-            # Pass both user_data and products to the template
-            return render_template(
-                "order_list.html", user_data=user_data, products=associated_products
-            )
-        else:
-            return "User data not found", 404
-    else:
+    if not user_id:
         return redirect(url_for("show_login"))
+
+    user_data = get_user_data(user_id)
+    if not user_data:
+        return "User data not found", 404
+
+    associated_products = get_associated_products(user_id)
+    return render_template(
+        "order_list.html", user_data=user_data, products=associated_products
+    )
+
 
 
 @app.route("/search_products", methods=["GET", "POST"])
 def search_products():
     user_id = session.get("user_id")
-    if user_id:
-        user_data = CustomerTable.query.filter_by(customer_id=user_id).first()
-        if not user_data:
-            return "User data not found", 404
-
-        if request.method == "POST":
-            search_query = request.form.get("searchQueryInput", "")
-            matched_products = ProductTable.query.filter(
-                ProductTable.p_name.like(f"%{search_query}%")
-            ).all()
-            return render_template(
-                "order_list.html", user_data=user_data, products=matched_products
-            )
-        else:
-            return render_template("order_list.html", user_data=user_data)
-
-    else:
+    if not user_id:
         return redirect(url_for("show_login"))
+
+    user_data = get_user_data(user_id)
+    if not user_data:
+        return "User data not found", 404
+
+    if request.method == "POST":
+        search_query = request.form.get("searchQueryInput", "")
+        matched_products = search_for_products(search_query)
+        return render_template(
+            "order_list.html", user_data=user_data, products=matched_products
+        )
+    else:
+        return render_template("order_list.html", user_data=user_data)
+
 
 
 # Route to display login page
