@@ -61,9 +61,24 @@ https://templatemo.com/tm-571-hexashop
                             <img src="../assets/images/logo.png" style=" width:100px; height:100px;">
                         </a>
                         <!-- ***** Logo End ***** -->
+
+
                         <!-- ***** Menu Start ***** -->
                         <ul class="nav">
+
+                            <!-- Reports dropdown -->
+                            <li>
+                                <div class="dropdown">
+                                    <a href="#">Reports</a>
+                                    <div class="dropdown-content">
+                                        <a href="{{ url_for('popular_products') }}">Popular Products</a>
+                                        <a href="#">Top Products</a>
+                                    </div>
+                                </div>
+                            </li>
+
                             <li class="scroll-to-section"><a href="/index" class="active">Home</a></li>
+
                             <li class="scroll-to-section"><a href="/products/Male">Men's</a></li>
                             <li class="scroll-to-section"><a href="/products/Female">Women's</a></li>
                             <li class="scroll-to-section"><a href="/products/Children">Kid's</a></li>
