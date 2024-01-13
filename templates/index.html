@@ -1,4 +1,38 @@
+<!-- Full-screen overlay for the background 
+<div class="overlay" id="overlay"></div>
+
+{% with messages = get_flashed_messages() %}
+{% if messages %}
+<ul class="flashes">
+    {% for message in messages %}
+    {% if category == "success" %}
+    <li class="success">{{ message }}</li>
+    {% elif category == "error" %}
+    <li class="error">{{ message }}</li>
+    {% elif category == "info" %}
+    <li class="info">{{ message }}</li>
+    {% else %}
+    <li>{{ message }}</li>
+    {% endif %}
+    {% endfor %}
+</ul>
+
+<script>
+    setTimeout(function () {
+        document.getElementById('overlay').style.display = 'none';
+    }, 2000);
+</script>
+{% endif %}
+{% endwith %}
+
+-->
+
+
+
+
+
 {% include 'includes/header.html' %}
+
 
 
 <!-- ***** Main Banner Area Start ***** -->
@@ -140,8 +174,10 @@
                             <div class="thumb">
                                 <div class="hover-content">
                                     <ul>
-                                        <li><a href="{{ url_for('single_product', product_id=product.p_id) }}"><i class="fa fa-eye"></i></a></li>
-                                        <li><a href="{{ url_for('single_product', product_id=product.p_id) }}"><i class="fa fa-shopping-cart"></i></a></li>
+                                        <li><a href="{{ url_for('single_product', product_id=product.p_id) }}"><i
+                                                    class="fa fa-eye"></i></a></li>
+                                        <li><a href="{{ url_for('single_product', product_id=product.p_id) }}"><i
+                                                    class="fa fa-shopping-cart"></i></a></li>
                                     </ul>
                                 </div>
                                 <img src="{{ product.p_image_url }}" alt="{{ product.p_name }}">
@@ -151,18 +187,18 @@
                                 <span>${{ product.p_price }}</span>
                                 <ul class="stars">
                                     {% if avg_rating is not none %}
-                                        {% set int_rating = avg_rating | round | int %}  <!-- Convert to integer -->                    
-                                        <!-- Dynamically display stars based on product's average rating -->
-                                        {% for _ in range(int_rating) %}
-                                            <li><i class="fa fa-star"></i></li>
-                                        {% endfor %}
-                                        {% for _ in range(5 - int_rating) %}
-                                            <li><i class="fa fa-star-o"></i></li>
-                                        {% endfor %}
+                                    {% set int_rating = avg_rating | round | int %} <!-- Convert to integer -->
+                                    <!-- Dynamically display stars based on product's average rating -->
+                                    {% for _ in range(int_rating) %}
+                                    <li><i class="fa fa-star"></i></li>
+                                    {% endfor %}
+                                    {% for _ in range(5 - int_rating) %}
+                                    <li><i class="fa fa-star-o"></i></li>
+                                    {% endfor %}
 
                                     {% else %}
-                                         <!-- Display for products without ratings -->
-                                         <li>No Ratings</li>
+                                    <!-- Display for products without ratings -->
+                                    <li>No Ratings</li>
                                     {% endif %}
                                 </ul>
                             </div>
@@ -212,8 +248,10 @@
                             <div class="thumb">
                                 <div class="hover-content">
                                     <ul>
-                                        <li><a href="{{ url_for('single_product', product_id=product.p_id) }}"><i class="fa fa-eye"></i></a></li>
-                                        <li><a href="{{ url_for('single_product', product_id=product.p_id) }}"><i class="fa fa-shopping-cart"></i></a></li>
+                                        <li><a href="{{ url_for('single_product', product_id=product.p_id) }}"><i
+                                                    class="fa fa-eye"></i></a></li>
+                                        <li><a href="{{ url_for('single_product', product_id=product.p_id) }}"><i
+                                                    class="fa fa-shopping-cart"></i></a></li>
                                     </ul>
                                 </div>
                                 <img src="{{ product.p_image_url }}" alt="{{ product.p_name }}">
@@ -223,19 +261,19 @@
                                 <span>${{ product.p_price }}</span>
                                 <ul class="stars">
                                     {% if avg_rating is not none %}
-                                    {% set int_rating = avg_rating | round | int %}  <!-- Convert to integer -->                    
+                                    {% set int_rating = avg_rating | round | int %} <!-- Convert to integer -->
                                     <!-- Dynamically display stars based on product's average rating -->
                                     {% for _ in range(int_rating) %}
-                                        <li><i class="fa fa-star"></i></li>
+                                    <li><i class="fa fa-star"></i></li>
                                     {% endfor %}
                                     {% for _ in range(5 - int_rating) %}
-                                        <li><i class="fa fa-star-o"></i></li>
+                                    <li><i class="fa fa-star-o"></i></li>
                                     {% endfor %}
 
-                                {% else %}
-                                     <!-- Display for products without ratings -->
-                                     <li>No Ratings</li>
-                                {% endif %}
+                                    {% else %}
+                                    <!-- Display for products without ratings -->
+                                    <li>No Ratings</li>
+                                    {% endif %}
                                 </ul>
                             </div>
                         </div>
@@ -282,8 +320,10 @@
                             <div class="thumb">
                                 <div class="hover-content">
                                     <ul>
-                                        <li><a href="{{ url_for('single_product', product_id=product.p_id) }}"><i class="fa fa-eye"></i></a></li>
-                                        <li><a href="{{ url_for('single_product', product_id=product.p_id) }}"><i class="fa fa-shopping-cart"></i></a></li>
+                                        <li><a href="{{ url_for('single_product', product_id=product.p_id) }}"><i
+                                                    class="fa fa-eye"></i></a></li>
+                                        <li><a href="{{ url_for('single_product', product_id=product.p_id) }}"><i
+                                                    class="fa fa-shopping-cart"></i></a></li>
                                     </ul>
                                 </div>
                                 <img src="{{ product.p_image_url }}" alt="{{ product.p_name }}">
@@ -293,19 +333,19 @@
                                 <span>${{ product.p_price }}</span>
                                 <ul class="stars">
                                     {% if avg_rating is not none %}
-                                        {% set int_rating = avg_rating | round | int %}  <!-- Convert to integer -->                    
-                                        <!-- Dynamically display stars based on product's average rating -->
-                                        {% for _ in range(int_rating) %}
-                                            <li><i class="fa fa-star"></i></li>
-                                        {% endfor %}
-                                        {% for _ in range(5 - int_rating) %}
-                                            <li><i class="fa fa-star-o"></i></li>
-                                        {% endfor %}
+                                    {% set int_rating = avg_rating | round | int %} <!-- Convert to integer -->
+                                    <!-- Dynamically display stars based on product's average rating -->
+                                    {% for _ in range(int_rating) %}
+                                    <li><i class="fa fa-star"></i></li>
+                                    {% endfor %}
+                                    {% for _ in range(5 - int_rating) %}
+                                    <li><i class="fa fa-star-o"></i></li>
+                                    {% endfor %}
 
                                     {% else %}
-                                         <!-- Display for products without ratings -->
-                                         <li>No Ratings</li>
-                                    {% endif %}  
+                                    <!-- Display for products without ratings -->
+                                    <li>No Ratings</li>
+                                    {% endif %}
                                 </ul>
                             </div>
                         </div>

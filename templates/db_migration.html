@@ -1,0 +1,88 @@
+{% include 'includes/header.html' %}
+
+
+<div class="container mt-5">
+
+    <h3
+        style="text-align: center; font-weight: bold; font-size: 22px; margin-top: 100px; margin-bottom: 10px; padding: 10px;">
+        NoSQL Migration</h3>
+
+    <p style="text-align: center; font-weight: normal; font-size: 16px; margin: 10px; padding: 10px;">
+        Please confirm the migration:
+    </p>
+
+    <p style="text-align: center; font-weight: normal; font-size: 16px; padding: 10px;">
+        <a class="confirm" href="#">Confirm</a>
+
+        <style>
+            a .confirm {
+                text-decoration: none;
+                color: #3498db;
+                font-weight: normal;
+                transition: color 0.3s ease;
+            }
+
+            a.confirm:hover {
+                color: #198312;
+            }
+        </style>
+
+    </p>
+
+    <p style="text-align: center; font-weight: normal; font-size: 16px; padding: 10px;">
+        <a class="cancel" href="{{ url_for('index') }}">Cancel</a>
+
+        <style>
+            a.cancel {
+                text-decoration: none;
+                color: #3498db;
+                font-weight: normal;
+                transition: color 0.3s ease;
+            }
+
+            a.cancel:hover {
+                color: #d81316;
+            }
+        </style>
+
+    </p>
+
+
+</div>
+
+
+{% include 'includes/footer.html' %}
+
+
+<!-- jQuery Libraries -->
+<script src="../assets/js/jquery-2.1.0.min.js"></script>
+<script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
+
+<!-- Bootstrap -->
+<script src="../assets/js/popper.js"></script>
+<script src="../assets/js/bootstrap.min.js"></script>
+
+<!-- Plugins -->
+<script src="../assets/js/owl-carousel.js"></script>
+<script src="../assets/js/accordions.js"></script>
+<script src="../assets/js/datepicker.js"></script>
+<script src="../assets/js/scrollreveal.min.js"></script>
+<script src="../assets/js/waypoints.min.js"></script>
+<script src="../assets/js/jquery.counterup.min.js"></script>
+<script src="../assets/js/imgfix.min.js"></script>
+<script src="../assets/js/slick.js"></script>
+<script src="../assets/js/lightbox.js"></script>
+<script src="../assets/js/isotope.js"></script>
+<script src="../assets/js/quantity.js"></script>
+
+<!-- Global Init -->
+<script src="../assets/js/custom.js"></script>
+
+
+
+
+
+
+</body>
+
+</html>

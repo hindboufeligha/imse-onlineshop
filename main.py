@@ -30,6 +30,7 @@ from datetime import datetime, timedelta
 from flask_pymongo import PyMongo
 from bson import ObjectId
 from lib.database_functions import *
+from lib.migration_functions import *
 
 app = Flask(__name__, static_folder="assets", template_folder="templates")
 app.config["SESSION_TYPE"] = "filesystem"
@@ -42,8 +43,10 @@ app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 app.config["UPLOAD_FOLDER"] = "assets/images"
 
+app.config["DB_MIGRATION_STATUS"] = ""
+
 app.config["MONGO_URI"] = "mongodb://localhost:27017/imse_onlineshop"
-mongo = PyMongo(app)
+mongo_db = PyMongo(app)
 
 
 # Explicitly set the template folder
@@ -115,8 +118,7 @@ def empty_database():
     return redirect(url_for("DB_operation"))
 
 
-
-#organized review codes
+# organized review codes
 @app.route("/my_reviews")
 def reviews():
     user_id = session.get("user_id")
@@ -124,7 +126,7 @@ def reviews():
         user_reviews, user_data = get_user_reviews(user_id)
         if not user_data:
             return "User data not found", 404
-        
+
         return render_template(
             "reviews.html", reviews=user_reviews, user_data=user_data
         )
@@ -132,12 +134,10 @@ def reviews():
         return redirect(url_for("show_login"))
 
 
-
 @app.route("/delete_review/<int:review_id>", methods=["POST"])
 def delete_review(review_id):
     result, message = delete_user_review(review_id)
     return jsonify({"message": message}), result
-
 
 
 @app.route("/add-review/<int:product_id>", methods=["GET", "POST"])
@@ -171,14 +171,15 @@ def add_review(product_id):
     )
 
 
-
 @app.route("/submit_review", methods=["POST"])
 def submit_review():
     # Retrieve form data
     title = request.form.get("title")
     description = request.form.get("description")
     rating = request.form.get("rating")
-    product_id = request.form.get("product_id")  # Ensure this hidden field is in your form
+    product_id = request.form.get(
+        "product_id"
+    )  # Ensure this hidden field is in your form
 
     if not product_id:
         return "Product ID is required", 400
@@ -203,7 +204,6 @@ def submit_review():
     return redirect(url_for("reviews"))
 
 
-
 @app.route("/search_reviews", methods=["POST"])
 def search_reviews():
     search_query = request.form.get("searchQueryInput", "")
@@ -211,11 +211,11 @@ def search_reviews():
 
     if not user_id:
         return redirect(url_for("show_login"))
-    
+
     user_data = get_user_data(user_id)
     if not user_data:
         return "User data not found", 404
-    
+
     if request.method == "POST":
         search_query = request.form.get("searchQueryInput", "")
         matched_reviews = search_for_reviews(search_query)
@@ -224,7 +224,6 @@ def search_reviews():
         )
     else:
         return render_template("order_list.html", user_data=user_data)
-
 
 
 @app.route("/order_list")
@@ -241,7 +240,6 @@ def order_list():
     return render_template(
         "order_list.html", user_data=user_data, products=associated_products
     )
-
 
 
 @app.route("/search_products", methods=["GET", "POST"])
@@ -264,7 +262,6 @@ def search_products():
         return render_template("order_list.html", user_data=user_data)
 
 
-
 # Route to display login page
 @app.route("/login", methods=["GET"])
 def show_login():
@@ -284,6 +281,7 @@ def login():
 
     if user and bcrypt.check_password_hash(user.password, password):
         session["user_id"] = user.customer_id
+        flash(message=f"Welcome back!", category="success")
         return redirect(url_for("index"))
 
     else:
@@ -381,6 +379,7 @@ def index():
                 top_male_products=top_male_products,
                 top_female_products=top_female_products,
                 top_kids_products=top_kids_products,
+                category="success",
             )
         else:
             # Handle case where user data is not found
@@ -543,6 +542,32 @@ def popular_products():
 
 
 ### END ###
+
+
+@app.route("/db_migration")
+def db_migration():
+    customer_id = session.get("user_id")
+    if customer_id:
+        customer_data = fetchCustomerData(customer_id, db)
+
+        return render_template("db_migration.html", user_data=customer_data)
+
+
+@app.route("/db_migrate")
+def db_migrate():
+    if app.config["DB_MIGRATION_STATUS"] == "SQL":
+        # migrate from sqlite to mongodb:
+        migrate_all_data(db, mongo_db)
+        # sql_drop_all(db=db)
+
+        # adjust migration status config:
+        app.config["DB_MIGRATION_STATUS"] = "NoSQL"
+        session["db_status"] = "NoSQL"
+        flash(message=f"Migration to NoSQL completed.", category="success")
+        return redirect(url_for("profile"))
+    else:
+        flash(message="You already migrated to NoSQL.", category="info")
+        return redirect(url_for("index"))
 
 
 if __name__ == "__main__":
