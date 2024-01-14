@@ -97,25 +97,115 @@ def indexxx():
     return render_template("index.html", customers=customers)
 
 
+
+
+@app.route("/")
+def DB_operation():
+    return render_template("DB_operation.html")
+
+
+
 @app.route("/fill_database", methods=["POST"])
 def fill_database():
     count = is_category_table_empty()
     initialize_tables(db, count)
-    # Stay at the same page
+    
     return redirect(url_for("DB_operation"))
 
 
-# Route to empty the database
+
 @app.route("/empty_database", methods=["POST"])
 def empty_database():
-    # Drop and recreate all tables:
-    with app.app_context():
-        db.reflect()
-        db.drop_all()
-        db.create_all()
-
-    # Stay at the same page:
+    emptyDatabase(app, db)
     return redirect(url_for("DB_operation"))
+
+
+
+@app.route("/login", methods=["GET"])
+def show_login():
+    return render_template("login.html")
+
+
+
+@app.route("/login", methods=["POST"])
+def login():
+    email = request.form.get("email")
+    password = request.form.get("password")
+
+    user, is_valid = validate_user_credentials(email, password)
+    if is_valid:
+        session["user_id"] = user.customer_id
+        flash(message="Welcome back!", category="success")
+        return redirect(url_for("index"))
+    else:
+        error_message = "Invalid email or password. Please try again."
+        return render_template("login.html", error_message=error_message)
+
+
+@app.route("/logout")
+def logout():
+    session.pop("user_id", None)
+    return redirect(url_for("show_login"))
+
+
+@app.route("/signup", methods=["GET"])
+def show_signup():
+    return render_template("signup.html")
+
+
+
+@app.route("/signup", methods=["POST"])
+def signup():
+    firstname = request.form.get("firstname")
+    familyname = request.form.get("familyname")
+    email = request.form.get("email")
+    phone_no = request.form.get("phone_no")
+    username = request.form.get("username")
+    password = request.form.get("password")
+
+    # Check if the email is already in use
+    if checkExistingUser(email):
+        flash("Email already in use. Please choose another email.", "danger")
+        return redirect(url_for("show_signup"))
+
+    # Create a new customer:
+    add_customer(
+        firstname=firstname,
+        familyname=familyname,
+        email=email,
+        phone_no=phone_no,
+        username=username,
+        password=password,
+    )
+
+    flash("Account created successfully! You can now log-in.", "success")
+    return redirect(url_for("show_login"))
+
+
+
+@app.route("/index")
+def index():
+    user_id = session.get("user_id")
+    if user_id:
+        user_data = userData(user_id)
+        if user_data:
+            top_male_products = TopProducts("Male")
+            top_female_products = TopProducts("Female")
+            top_kids_products = TopProducts("Children")
+
+            return render_template(
+                "index.html",
+                user_data=user_data,
+                top_male_products=top_male_products,
+                top_female_products=top_female_products,
+                top_kids_products=top_kids_products,
+                category="success",
+            )
+        else:
+            return "User data not found", 404
+    else:
+        return redirect(url_for("show_login"))
+
 
 
 # organized review codes
@@ -123,7 +213,7 @@ def empty_database():
 def reviews():
     user_id = session.get("user_id")
     if user_id:
-        user_reviews, user_data = get_user_reviews(user_id)
+        user_reviews, user_data = userReviews(user_id)
         if not user_data:
             return "User data not found", 404
 
@@ -136,7 +226,7 @@ def reviews():
 
 @app.route("/delete_review/<int:review_id>", methods=["POST"])
 def delete_review(review_id):
-    result, message = delete_user_review(review_id)
+    result, message = deleteUserReview(review_id)
     return jsonify({"message": message}), result
 
 
@@ -146,12 +236,12 @@ def add_review(product_id):
     if not user_id:
         return redirect(url_for("show_login"))
 
-    user_data = get_user_data(user_id)
+    user_data = userData(user_id)
     if not user_data:
         flash("User data not found", "error")
         return redirect(url_for("index"))
 
-    product = get_product(product_id)
+    product = getProduct(product_id)
     if not product:
         flash("Product not found", "error")
         return redirect(url_for("index"))
@@ -161,11 +251,11 @@ def add_review(product_id):
         description = request.form.get("description")
         rating = float(request.form.get("rating"))
 
-        get_or_create_review(user_id, product_id, title, description, rating)
+        getCreateReview(user_id, product_id, title, description, rating)
         flash("Review saved successfully", "success")
         return redirect(url_for("reviews"))
 
-    existing_review = get_or_create_review(user_id, product_id, get_only=True)
+    existing_review = getCreateReview(user_id, product_id, get_only=True)
     return render_template(
         "add-review.html", user_data=user_data, product=product, review=existing_review
     )
@@ -173,13 +263,12 @@ def add_review(product_id):
 
 @app.route("/submit_review", methods=["POST"])
 def submit_review():
-    # Retrieve form data
     title = request.form.get("title")
     description = request.form.get("description")
     rating = request.form.get("rating")
     product_id = request.form.get(
         "product_id"
-    )  # Ensure this hidden field is in your form
+    )  
 
     if not product_id:
         return "Product ID is required", 400
@@ -198,9 +287,9 @@ def submit_review():
         image_url = url_for("static", filename=f"uploads/reviews/{filename}")
 
     user_id = session.get("user_id")
-    submit_or_update_review(user_id, product_id, title, description, rating, image_url)
+    submitUpdateReview(user_id, product_id, title, description, rating, image_url)
 
-    flash("success", "Review submitted successfully")  # Flash a success message
+    flash("success", "Review submitted successfully") 
     return redirect(url_for("reviews"))
 
 
@@ -212,13 +301,13 @@ def search_reviews():
     if not user_id:
         return redirect(url_for("show_login"))
 
-    user_data = get_user_data(user_id)
+    user_data = userData(user_id)
     if not user_data:
         return "User data not found", 404
 
     if request.method == "POST":
         search_query = request.form.get("searchQueryInput", "")
-        matched_reviews = search_for_reviews(search_query)
+        matched_reviews = searchReviews(search_query)
         return render_template(
             "reviews.html", user_data=user_data, reviews=matched_reviews
         )
@@ -232,11 +321,11 @@ def order_list():
     if not user_id:
         return redirect(url_for("show_login"))
 
-    user_data = get_user_data(user_id)
+    user_data = userData(user_id)
     if not user_data:
         return "User data not found", 404
 
-    associated_products = get_associated_products(user_id)
+    associated_products = associatedProducts(user_id)
     return render_template(
         "order_list.html", user_data=user_data, products=associated_products
     )
@@ -248,145 +337,18 @@ def search_products():
     if not user_id:
         return redirect(url_for("show_login"))
 
-    user_data = get_user_data(user_id)
+    user_data = userData(user_id)
     if not user_data:
         return "User data not found", 404
 
     if request.method == "POST":
         search_query = request.form.get("searchQueryInput", "")
-        matched_products = search_for_products(search_query)
+        matched_products = searchProducts(search_query)
         return render_template(
             "order_list.html", user_data=user_data, products=matched_products
         )
     else:
         return render_template("order_list.html", user_data=user_data)
-
-
-# Route to display login page
-@app.route("/login", methods=["GET"])
-def show_login():
-    return render_template("login.html")
-
-
-# Route to handle login form submission
-@app.route("/login", methods=["POST"])
-def login():
-    # Retrieve email and password from the form
-
-    email = request.form.get("email")
-    password = request.form.get("password")
-
-    # Check the database for the given email and password
-    user = CustomerTable.query.filter_by(email=email).first()
-
-    if user and bcrypt.check_password_hash(user.password, password):
-        session["user_id"] = user.customer_id
-        flash(message=f"Welcome back!", category="success")
-        return redirect(url_for("index"))
-
-    else:
-        # Invalid credentials, render the login page with an error message
-        error_message = "Invalid email or password. Please try again."
-        return render_template("login.html", error_message=error_message)
-
-
-@app.route("/logout")
-def logout():
-    session.pop("user_id", None)
-    return redirect(url_for("show_login"))
-
-
-@app.route("/signup", methods=["GET"])
-def show_signup():
-    return render_template("signup.html")
-
-
-@app.route("/signup", methods=["POST"])
-def signup():
-    firstname = request.form.get("firstname")
-    familyname = request.form.get("familyname")
-    email = request.form.get("email")
-    phone_no = request.form.get("phone_no")
-    username = request.form.get("username")
-    password = request.form.get("password")
-
-    # Check if the email is already in use
-    existing_user = CustomerTable.query.filter_by(email=email).first()
-    if existing_user:
-        flash("Email already in use. Please choose another email.", "danger")
-        return redirect(url_for("show_signup"))
-
-    # Create a new customer:
-    add_customer(
-        firstname=firstname,
-        familyname=familyname,
-        email=email,
-        phone_no=phone_no,
-        username=username,
-        password=password,
-    )
-
-    flash("Account created successfully! You can now log-in.", "success")
-    return redirect(url_for("show_login"))
-
-
-## Cookies --->
-
-## End of Cookies --->
-
-
-@app.route("/")
-def DB_operation():
-    return render_template("DB_operation.html")
-
-
-@app.route("/index")
-def index():
-    user_id = session.get("user_id")
-    if user_id:
-        user_data = CustomerTable.query.filter_by(customer_id=user_id).first()
-        if user_data:
-            # Function to get top products based on gender
-            def get_top_products(gender):
-                six_months_ago = datetime.utcnow() - timedelta(days=180)
-                avg_ratings = (
-                    db.session.query(
-                        ReviewTable.product_id,
-                        func.avg(ReviewTable.rating).label("average_rating"),
-                    )
-                    .filter(ReviewTable.post_date >= six_months_ago)
-                    .group_by(ReviewTable.product_id)
-                    .subquery()
-                )
-
-                return (
-                    db.session.query(ProductTable, avg_ratings.c.average_rating)
-                    .join(avg_ratings, ProductTable.p_id == avg_ratings.c.product_id)
-                    .filter(ProductTable.p_gender == gender)
-                    .order_by(avg_ratings.c.average_rating.desc())
-                    .limit(5)
-                    .all()
-                )
-
-            top_male_products = get_top_products("Male")
-            top_female_products = get_top_products("Female")
-            top_kids_products = get_top_products("Children")
-
-            # Pass user_data and top products to the template
-            return render_template(
-                "index.html",
-                user_data=user_data,
-                top_male_products=top_male_products,
-                top_female_products=top_female_products,
-                top_kids_products=top_kids_products,
-                category="success",
-            )
-        else:
-            # Handle case where user data is not found
-            return "User data not found", 404
-    else:
-        # Redirect to login if no user is in session
-        return redirect(url_for("show_login"))
 
 
 @app.route("/psubcategory")

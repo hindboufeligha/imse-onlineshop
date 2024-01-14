@@ -32,7 +32,61 @@ from bson import ObjectId
 
 
 
-def get_user_reviews(user_id):
+def emptyDatabase(app, db):
+    with app.app_context():
+        db.reflect()
+        db.drop_all()
+        db.create_all()
+
+
+def validate_user_credentials(email, password):
+    user = CustomerTable.query.filter_by(email=email).first()
+    if user and bcrypt.checkpw(password.encode('utf-8'), user.password):
+        return user, True
+    else:
+        return None, False
+
+
+def checkExistingUser(email):
+    return CustomerTable.query.filter_by(email=email).first() is not None
+
+def add_customer(firstname, familyname, email, phone_no, username, password):
+    
+    new_customer = CustomerTable(
+        firstname=firstname,
+        familyname=familyname,
+        email=email,
+        phone_no=phone_no,
+        username=username,
+        password=password,
+    )
+    db.session.add(new_customer)
+    db.session.commit()
+
+
+def TopProducts(gender):
+    six_months_ago = datetime.utcnow() - timedelta(days=180)
+    avg_ratings = (
+        db.session.query(
+            ReviewTable.product_id,
+            func.avg(ReviewTable.rating).label("average_rating"),
+        )
+        .filter(ReviewTable.post_date >= six_months_ago)
+        .group_by(ReviewTable.product_id)
+        .subquery()
+    )
+
+    return (
+        db.session.query(ProductTable, avg_ratings.c.average_rating)
+        .join(avg_ratings, ProductTable.p_id == avg_ratings.c.product_id)
+        .filter(ProductTable.p_gender == gender)
+        .order_by(avg_ratings.c.average_rating.desc())
+        .limit(5)
+        .all()
+    )
+
+
+def userReviews(user_id):
     user_data = CustomerTable.query.filter_by(customer_id=user_id).first()
     
     if user_data:
@@ -44,14 +98,14 @@ def get_user_reviews(user_id):
 
 
 
-def search_for_reviews(search_query):
+def searchReviews(search_query):
     return ReviewTable.query.filter(
         ReviewTable.title.like(f"%{search_query}%")
     ).all()
 
 
 
-def delete_user_review(review_id):
+def deleteUserReview(review_id):
     review = ReviewTable.query.get(review_id)
     if review:
         db.session.delete(review)
@@ -62,13 +116,13 @@ def delete_user_review(review_id):
 
 
 
-def get_user_data(user_id):
+def userData(user_id):
     return CustomerTable.query.filter_by(customer_id=user_id).first()
 
-def get_product(product_id):
+def getProduct(product_id):
     return ProductTable.query.get(product_id)
 
-def get_or_create_review(user_id, product_id, title=None, description=None, rating=None, get_only=False):
+def getCreateReview(user_id, product_id, title=None, description=None, rating=None, get_only=False):
     review = ReviewTable.query.filter_by(customer_id=user_id, product_id=product_id).first()
     if get_only:
         return review
@@ -93,7 +147,7 @@ def get_or_create_review(user_id, product_id, title=None, description=None, rati
 
 
 
-def submit_or_update_review(user_id, product_id, title, description, rating, image_url):
+def submitUpdateReview(user_id, product_id, title, description, rating, image_url):
     existing_review = ReviewTable.query.filter_by(
         customer_id=user_id, product_id=product_id
     ).first()
@@ -120,7 +174,7 @@ def submit_or_update_review(user_id, product_id, title, description, rating, ima
 
 
 
-def get_associated_products(user_id):
+def associatedProducts(user_id):
     # Query to find product IDs associated with the user
     associated_product_ids = (
         db.session.query(customer_product_association.c.productID)
@@ -136,7 +190,7 @@ def get_associated_products(user_id):
 
 
 
-def search_for_products(search_query):
+def searchProducts(search_query):
     return ProductTable.query.filter(
         ProductTable.p_name.like(f"%{search_query}%")
     ).all()

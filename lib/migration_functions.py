@@ -103,7 +103,7 @@ def migrate_all_data(db, mongo_db):
 
         customer["wishlists"] = wishlists
 
-    # REFERENCING TO ORDERS IDs
+    # REFERENCING TO ORDERS IDs(customer)
 
     customer_col.insert_many(customers)
 
@@ -170,5 +170,63 @@ def migrate_all_data(db, mongo_db):
     cartitems = [row.dropna().to_dict() for _, row in df_cartitem.iterrows()]
     cartitem_col.insert_many(cartitems)
 
+
+
     # 7: create Order Collection in mongodb:
     order_col = mongo_db["order"]
+    order_col.create_index([('_id', pymongo.ASCENDING)], unique=True)
+
+    #insert order
+    def add_order(order_id, customer_id, product_id):
+        
+        if not db["CustomerTable"].find_one({"_id": customer_id}):
+            raise ValueError(f"Customer with ID {customer_id} does not exist.")
+
+        if not db["ProductTable"].find_one({"_id": product_id}):
+            raise ValueError(f"Product with ID {product_id} does not exist.")
+
+        # If both checks pass, proceed to add the order
+        new_order = {
+            "order_id": order_id,
+            "customer_id": customer_id,
+            "product_id": product_id,
+            "order_date": datetime.now()
+        }
+        return order_col.insert_one(new_order).inserted_id
+    
+    
+    
+     # 8: create review Collection in mongodb:
+    review_col = mongo_db["review"]
+    review_col.create_index([('_id', pymongo.ASCENDING)], unique=True)
+    customer_col = db["CustomerTable"]  
+    product_col = db["ProductTable"] 
+    
+    # Function to add a review
+    def add_review(title, description, image_url, rating, customer_id, product_id):
+         
+        if not customer_col.find_one({"_id": customer_id}):
+            raise ValueError(f"Customer with ID {customer_id} does not exist.")
+
+        if not product_col.find_one({"_id": product_id}):
+            raise ValueError(f"Product with ID {product_id} does not exist.")
+
+        new_review = {
+            "title": title,
+            "description": description,
+            "image_url": image_url,
+            "rating": rating,
+            "post_date": datetime.now(),
+            "customer_id": customer_id,
+            "product_id": product_id
+        }
+        return review_col.insert_one(new_review).inserted_id
+
+   
+
+        
+        
+        
+
+
+
