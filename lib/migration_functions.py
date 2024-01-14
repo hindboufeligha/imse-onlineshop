@@ -222,6 +222,8 @@ def migrate_all_data(db, mongo_db):
         }
         return review_col.insert_one(new_review).inserted_id
 
+
+
    
 
         

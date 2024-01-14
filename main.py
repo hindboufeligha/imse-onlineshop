@@ -113,7 +113,6 @@ def fill_database():
     return redirect(url_for("DB_operation"))
 
 
-
 @app.route("/empty_database", methods=["POST"])
 def empty_database():
     emptyDatabase(app, db)
