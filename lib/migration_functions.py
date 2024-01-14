@@ -113,6 +113,10 @@ def migrate_all_data(db, mongo_db):
 
             wishlist["product_ids"] = wishlist_product_ids
 
+        # Remove p_id from each size dictionary
+        for wishlist in wishlists:
+            wishlist.pop("customer_id", None)
+
         customer["wishlists"] = wishlists
 
     # REFERENCING TO ORDERS IDs(customer)
@@ -135,6 +139,28 @@ def migrate_all_data(db, mongo_db):
 
     # Convert the merged dataframe to a list of dictionaries and insert into MongoDB
     products = df_merged.to_dict(orient="records")
+
+    # Embed Sizes within each Product document:
+    for product in products:
+        product_id = product["_id"]
+        # Extract cartitems related to the current cart_id
+        sizes = df_product_size[df_product_size["p_id"] == product_id].to_dict(
+            orient="records"
+        )
+        # Remove p_id from each size dictionary
+        for size in sizes:
+            size.pop("p_id", None)
+
+            # fetch size_name info from df_size
+            size_id = size.get("size_id")
+            if size_id is not None:
+                size_info = df_size[df_size["_id"] == size_id].to_dict(orient="records")
+                if size_info:
+                    size_name = size_info[0]["size_name"]
+                    size["size_name"] = size_name
+
+        # Embed Sizes within each Product document:
+        product["sizes"] = sizes
 
     product_col.insert_many(products)
 
@@ -178,10 +204,14 @@ def migrate_all_data(db, mongo_db):
             orient="records"
         )
 
+        # Remove p_id from each size dictionary
+        for cartitem in cartitems:
+            cartitem.pop("cart_id", None)
+
         # Embed CartItem within each Cart document:
         cart["cart_items"] = cartitems
 
-    print(carts[:5])
+    # print(carts[:5]) TEST
     # Insert Carts into mongodb:
     cart_col.insert_many(carts)
 
@@ -198,8 +228,6 @@ def migrate_all_data(db, mongo_db):
     )
     cartitems = [row.dropna().to_dict() for _, row in df_cartitem.iterrows()]
     cartitem_col.insert_many(cartitems)
-
-    # 7: create Size collection in mongodb:
 
     # 7: create Order Collection in mongodb:
     order_col = mongo_db["order"]
@@ -246,3 +274,12 @@ def migrate_all_data(db, mongo_db):
             "product_id": product_id,
         }
         review_col.insert_one(new_review).inserted_id
+
+
+
+    # 9: create Size collection in mongodb:
+    size_col = mongo_db["size"]
+    size_col.create_index([("_id", pymongo.ASCENDING)])
+    sizes = df_size.to_dict(orient="records")
+
+    size_col.insert_many(sizes)
