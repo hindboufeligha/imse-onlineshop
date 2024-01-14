@@ -1,3 +1,31 @@
+<!-- Full-screen overlay for the background 
+<div class="overlay" id="overlay"></div> -->
+
+{% with messages = get_flashed_messages() %}
+{% if messages %}
+<ul class="flashes">
+    {% for message in messages %}
+    {% if category == "success" %}
+    <li class="success">{{ message }}</li>
+    {% elif category == "error" %}
+    <li class="error">{{ message }}</li>
+    {% elif category == "info" %}
+    <li class="info">{{ message }}</li>
+    {% else %}
+    <li>{{ message }}</li>
+    {% endif %}
+    {% endfor %}
+</ul>
+<!--
+<script>
+    setTimeout(function () {
+        document.getElementById('overlay').style.display = 'none';
+    }, 2000);
+</script>
+-->
+{% endif %}
+{% endwith %}
+
 {% include 'includes/header.html' %}
 
 
@@ -12,7 +40,7 @@
     </p>
 
     <p style="text-align: center; font-weight: normal; font-size: 16px; padding: 10px;">
-        <a class="confirm" href="#">Confirm</a>
+        <a class="confirm" href="{{ url_for('db_migrate') }}">Confirm</a>
 
         <style>
             a .confirm {

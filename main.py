@@ -46,12 +46,17 @@ app.config["UPLOAD_FOLDER"] = "assets/images"
 app.config["DB_MIGRATION_STATUS"] = ""
 
 app.config["MONGO_URI"] = "mongodb://localhost:27017/imse_onlineshop"
-mongo_db = PyMongo(app)
+mongo = PyMongo(app)
+
+reset_mongodb(mongo)
+# access the MongoDB database using the 'db' attribute of the 'mongo' object
+mongo_db = mongo.db
 
 
 # Explicitly set the template folder
 # app.template_folder = "templates"
 
+# engine = create_engine(app.config["SQLALCHEMY_DATABASE_URI"])
 db.init_app(app)
 
 
@@ -101,6 +106,8 @@ def indexxx():
 def fill_database():
     count = is_category_table_empty()
     initialize_tables(db, count)
+    app.config["DB_MIGRATION_STATUS"] = "SQL"
+    session["db_status"] = "SQL"
     # Stay at the same page
     return redirect(url_for("DB_operation"))
 
@@ -108,12 +115,7 @@ def fill_database():
 # Route to empty the database
 @app.route("/empty_database", methods=["POST"])
 def empty_database():
-    # Drop and recreate all tables:
-    with app.app_context():
-        db.reflect()
-        db.drop_all()
-        db.create_all()
-
+    empty_tables(app, db)
     # Stay at the same page:
     return redirect(url_for("DB_operation"))
 
@@ -337,6 +339,7 @@ def signup():
 
 @app.route("/")
 def DB_operation():
+    session["db_status"] = "SQL"
     return render_template("DB_operation.html")
 
 
@@ -555,19 +558,20 @@ def db_migration():
 
 @app.route("/db_migrate")
 def db_migrate():
-    if app.config["DB_MIGRATION_STATUS"] == "SQL":
+    if session.get("db_status") == "SQL":
         # migrate from sqlite to mongodb:
         migrate_all_data(db, mongo_db)
         # sql_drop_all(db=db)
+        # empty_tables(app, db)
 
         # adjust migration status config:
         app.config["DB_MIGRATION_STATUS"] = "NoSQL"
         session["db_status"] = "NoSQL"
         flash(message=f"Migration to NoSQL completed.", category="success")
-        return redirect(url_for("profile"))
+        return redirect(url_for("index"))
     else:
         flash(message="You already migrated to NoSQL.", category="info")
-        return redirect(url_for("index"))
+        return redirect(url_for("db_migration"))
 
 
 if __name__ == "__main__":
