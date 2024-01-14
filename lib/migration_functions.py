@@ -136,37 +136,6 @@ def migrate_all_data(db, mongo_db):
     # Convert the merged dataframe to a list of dictionaries and insert into MongoDB
     products = df_merged.to_dict(orient="records")
 
-    # Embed Sizes within each Product document:
-    for product in products:
-        product_id = product["_id"]
-        # fetch sizes associated with the current product_id:
-        sizes_association = df_product_size[df_product_size["p_id"] == product_id]
-
-        # now create a list of sizes for the product:
-        sizes: []
-        for _, size_association in sizes_association.iterrows():
-            # print(f"size_association: {size_association}")
-
-            size_id = size_association.at["size_id"]
-
-            if size_id is not None:
-                size_info = df_size[df_size["_id"] == size_id]
-
-                if not size_info.empty:
-                    size_name = size_info.iloc[0]["size_name"]
-
-                    size = {
-                        "_id": size_id,
-                        "size_name": size_name,
-                        "quantity": size_association["quantity"],
-                    }
-
-                    sizes.append(size)
-
-        if sizes:
-            # embed Sizes within Product Document:
-            product["sizes"] = sizes
-
     product_col.insert_many(products)
 
     # 5: create Cart Collection in mongodb and embed Payment and reference to customer_id:
@@ -229,6 +198,8 @@ def migrate_all_data(db, mongo_db):
     )
     cartitems = [row.dropna().to_dict() for _, row in df_cartitem.iterrows()]
     cartitem_col.insert_many(cartitems)
+
+    # 7: create Size collection in mongodb:
 
     # 7: create Order Collection in mongodb:
     order_col = mongo_db["order"]

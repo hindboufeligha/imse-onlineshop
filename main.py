@@ -68,38 +68,6 @@ def is_category_table_empty():
     return count == 0
 
 
-@app.route("/hh")
-def indexxx():
-    customers = db.session.query(CustomerTable).all()
-    # TEST:
-    # Output generated products with their subcategories + parent categories.
-    # Aliases for self-joins on CategoryTable
-    Subcategory = aliased(CategoryTable)
-    ParentCategory = aliased(CategoryTable)
-    # Query products with their categories and parent categories
-    products_with_categories = (
-        db.session.query(
-            ProductTable,
-            CategoryTable.category_name.label("category_name"),
-            Subcategory.category_name.label("parent_category_name"),
-        )
-        .join(
-            CategoryTable,
-            ProductTable.category_id == db.CategoryTable.category_id,
-        )
-        .join(
-            Subcategory,
-            CategoryTable.parent_category_id == Subcategory.category_id,
-            isouter=True,
-        )
-        .all()
-    )
-    for product, subcategory_name, parent_category_name in products_with_categories:
-        print(
-            f"Product: {product.p_name}, Subcategory: {subcategory_name}, Parent Category: {parent_category_name}"
-        )
-
-    return render_template("index.html", customers=customers)
 
 
 @app.route("/fill_database", methods=["POST"])
