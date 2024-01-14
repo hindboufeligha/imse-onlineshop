@@ -201,15 +201,12 @@ def migrate_all_data(db, mongo_db):
 
     # 7: create Size collection in mongodb:
 
-
-
     # 7: create Order Collection in mongodb:
     order_col = mongo_db["order"]
-    order_col.create_index([('_id', pymongo.ASCENDING)], unique=True)
+    order_col.create_index([("_id", pymongo.ASCENDING)])
 
-    #insert order
+    # insert order
     def add_order(order_id, customer_id, product_id):
-        
         if not db["CustomerTable"].find_one({"_id": customer_id}):
             raise ValueError(f"Customer with ID {customer_id} does not exist.")
 
@@ -221,21 +218,18 @@ def migrate_all_data(db, mongo_db):
             "order_id": order_id,
             "customer_id": customer_id,
             "product_id": product_id,
-            "order_date": datetime.now()
+            "order_date": datetime.now(),
         }
         return order_col.insert_one(new_order).inserted_id
-    
-    
-    
-     # 8: create review Collection in mongodb:
+
+    # 8: create review Collection in mongodb:
     review_col = mongo_db["review"]
-    review_col.create_index([('_id', pymongo.ASCENDING)], unique=True)
-    customer_col = db["CustomerTable"]  
-    product_col = db["ProductTable"] 
-    
+    review_col.create_index([("_id", pymongo.ASCENDING)])
+    customer_col = mongo_db["CustomerTable"]
+    product_col = mongo_db["ProductTable"]
+
     # Function to add a review
     def add_review(title, description, image_url, rating, customer_id, product_id):
-         
         if not customer_col.find_one({"_id": customer_id}):
             raise ValueError(f"Customer with ID {customer_id} does not exist.")
 
@@ -249,17 +243,6 @@ def migrate_all_data(db, mongo_db):
             "rating": rating,
             "post_date": datetime.now(),
             "customer_id": customer_id,
-            "product_id": product_id
+            "product_id": product_id,
         }
-        return review_col.insert_one(new_review).inserted_id
-
-
-
-   
-
-        
-        
-        
-
-
-
+        review_col.insert_one(new_review).inserted_id
