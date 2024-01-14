@@ -437,3 +437,11 @@ def initialize_tables(db, count):
         customer.products.extend(random.sample(products, num))
 
     db.session.commit()
+
+
+def empty_tables(app, db):
+    # Drop and recreate all tables:
+    with app.app_context():
+        db.reflect()
+        db.drop_all()
+        db.create_all()

@@ -46,12 +46,17 @@ app.config["UPLOAD_FOLDER"] = "assets/images"
 app.config["DB_MIGRATION_STATUS"] = ""
 
 app.config["MONGO_URI"] = "mongodb://localhost:27017/imse_onlineshop"
-mongo_db = PyMongo(app)
+mongo = PyMongo(app)
+
+reset_mongodb(mongo)
+# access the MongoDB database using the 'db' attribute of the 'mongo' object
+mongo_db = mongo.db
 
 
 # Explicitly set the template folder
 # app.template_folder = "templates"
 
+# engine = create_engine(app.config["SQLALCHEMY_DATABASE_URI"])
 db.init_app(app)
 
 
@@ -109,13 +114,16 @@ def DB_operation():
 def fill_database():
     count = is_category_table_empty()
     initialize_tables(db, count)
-    
+    app.config["DB_MIGRATION_STATUS"] = "SQL"
+    session["db_status"] = "SQL"
+    # Stay at the same page
     return redirect(url_for("DB_operation"))
 
 
 @app.route("/empty_database", methods=["POST"])
 def empty_database():
-    emptyDatabase(app, db)
+    empty_tables(app, db)
+    # Stay at the same page:
     return redirect(url_for("DB_operation"))
 
 
@@ -350,6 +358,134 @@ def search_products():
         return render_template("order_list.html", user_data=user_data)
 
 
+# Route to display login page
+@app.route("/login", methods=["GET"])
+def show_login():
+    return render_template("login.html")
+
+
+# Route to handle login form submission
+@app.route("/login", methods=["POST"])
+def login():
+    # Retrieve email and password from the form
+
+    email = request.form.get("email")
+    password = request.form.get("password")
+
+    # Check the database for the given email and password
+    user = CustomerTable.query.filter_by(email=email).first()
+
+    if user and bcrypt.check_password_hash(user.password, password):
+        session["user_id"] = user.customer_id
+        flash(message=f"Welcome back!", category="success")
+        return redirect(url_for("index"))
+
+    else:
+        # Invalid credentials, render the login page with an error message
+        error_message = "Invalid email or password. Please try again."
+        return render_template("login.html", error_message=error_message)
+
+
+@app.route("/logout")
+def logout():
+    session.pop("user_id", None)
+    return redirect(url_for("show_login"))
+
+
+@app.route("/signup", methods=["GET"])
+def show_signup():
+    return render_template("signup.html")
+
+
+@app.route("/signup", methods=["POST"])
+def signup():
+    firstname = request.form.get("firstname")
+    familyname = request.form.get("familyname")
+    email = request.form.get("email")
+    phone_no = request.form.get("phone_no")
+    username = request.form.get("username")
+    password = request.form.get("password")
+
+    # Check if the email is already in use
+    existing_user = CustomerTable.query.filter_by(email=email).first()
+    if existing_user:
+        flash("Email already in use. Please choose another email.", "danger")
+        return redirect(url_for("show_signup"))
+
+    # Create a new customer:
+    add_customer(
+        firstname=firstname,
+        familyname=familyname,
+        email=email,
+        phone_no=phone_no,
+        username=username,
+        password=password,
+    )
+
+    flash("Account created successfully! You can now log-in.", "success")
+    return redirect(url_for("show_login"))
+
+
+## Cookies --->
+
+## End of Cookies --->
+
+
+@app.route("/")
+def DB_operation():
+    session["db_status"] = "SQL"
+    return render_template("DB_operation.html")
+
+
+@app.route("/index")
+def index():
+    user_id = session.get("user_id")
+    if user_id:
+        user_data = CustomerTable.query.filter_by(customer_id=user_id).first()
+        if user_data:
+            # Function to get top products based on gender
+            def get_top_products(gender):
+                six_months_ago = datetime.utcnow() - timedelta(days=180)
+                avg_ratings = (
+                    db.session.query(
+                        ReviewTable.product_id,
+                        func.avg(ReviewTable.rating).label("average_rating"),
+                    )
+                    .filter(ReviewTable.post_date >= six_months_ago)
+                    .group_by(ReviewTable.product_id)
+                    .subquery()
+                )
+
+                return (
+                    db.session.query(ProductTable, avg_ratings.c.average_rating)
+                    .join(avg_ratings, ProductTable.p_id == avg_ratings.c.product_id)
+                    .filter(ProductTable.p_gender == gender)
+                    .order_by(avg_ratings.c.average_rating.desc())
+                    .limit(5)
+                    .all()
+                )
+
+            top_male_products = get_top_products("Male")
+            top_female_products = get_top_products("Female")
+            top_kids_products = get_top_products("Children")
+
+            # Pass user_data and top products to the template
+            return render_template(
+                "index.html",
+                user_data=user_data,
+                top_male_products=top_male_products,
+                top_female_products=top_female_products,
+                top_kids_products=top_kids_products,
+                category="success",
+            )
+        else:
+            # Handle case where user data is not found
+            return "User data not found", 404
+    else:
+        # Redirect to login if no user is in session
+        return redirect(url_for("show_login"))
+
+
 @app.route("/psubcategory")
 def psubcategory():
     p_gender = request.args.get("p_gender")
@@ -516,19 +652,20 @@ def db_migration():
 
 @app.route("/db_migrate")
 def db_migrate():
-    if app.config["DB_MIGRATION_STATUS"] == "SQL":
+    if session.get("db_status") == "SQL":
         # migrate from sqlite to mongodb:
         migrate_all_data(db, mongo_db)
         # sql_drop_all(db=db)
+        # empty_tables(app, db)
 
         # adjust migration status config:
         app.config["DB_MIGRATION_STATUS"] = "NoSQL"
         session["db_status"] = "NoSQL"
         flash(message=f"Migration to NoSQL completed.", category="success")
-        return redirect(url_for("profile"))
+        return redirect(url_for("index"))
     else:
         flash(message="You already migrated to NoSQL.", category="info")
-        return redirect(url_for("index"))
+        return redirect(url_for("db_migration"))
 
 
 if __name__ == "__main__":
