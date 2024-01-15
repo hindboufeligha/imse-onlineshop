@@ -31,6 +31,7 @@ from flask_pymongo import PyMongo
 from bson import ObjectId
 from lib.database_functions import *
 from lib.migration_functions import *
+from functools import wraps
 
 app = Flask(__name__, static_folder="assets", template_folder="templates")
 app.config["SESSION_TYPE"] = "filesystem"
@@ -71,6 +72,55 @@ def is_category_table_empty():
 
 
 
+@app.route("/db_migration")
+def db_migration():
+    customer_id = session.get("user_id")
+    if customer_id:
+        customer_data = fetchCustomerData(customer_id, db)
+
+        return render_template("db_migration.html", user_data=customer_data)
+
+
+
+
+@app.route("/")
+def DB_operation():
+    session["db_status"] = "SQL"
+    return render_template("DB_operation.html")
+
+
+@app.route("/db_migrate")
+def db_migrate():
+    if session.get("db_status") == "SQL":
+        # migrate from sqlite to mongodb:
+        migrate_all_data(db, mongo_db)
+        # sql_drop_all(db=db)
+        # empty_tables(app, db)
+
+        # adjust migration status config:
+        app.config["DB_MIGRATION_STATUS"] = "NoSQL"
+        session["db_status"] = "NoSQL"
+        flash(message=f"Migration to NoSQL completed.", category="success")
+        return redirect(url_for("index"))
+    else:
+        flash(message="You already migrated to NoSQL.", category="info")
+        return redirect(url_for("db_migration"))
+
+
+def is_db_initialized(f):
+    """ check if database has been initialized """
+    @wraps(f)
+    def wrap(*args, **kwargs):
+        if app.config['DB_MIGRATION_STATUS'] in ['SQL', 'NoSQL']:
+            return f(*args, **kwargs)
+        else:
+            flash(message='Unauthorized. Please initialize database.', category='danger')
+            return redirect(url_for('DB_operation'))
+    return wrap
+
+
+
+
 
 @app.route("/fill_database", methods=["POST"])
 def fill_database():
@@ -91,12 +141,14 @@ def empty_database():
 
 
 @app.route("/login", methods=["GET"])
+@is_db_initialized
 def show_login():
     return render_template("login.html")
 
 
 
 @app.route("/login", methods=["POST"])
+@is_db_initialized
 def login():
     email = request.form.get("email")
     password = request.form.get("password")
@@ -118,12 +170,14 @@ def logout():
 
 
 @app.route("/signup", methods=["GET"])
+@is_db_initialized
 def show_signup():
     return render_template("signup.html")
 
 
 
 @app.route("/signup", methods=["POST"])
+@is_db_initialized
 def signup():
     firstname = request.form.get("firstname")
     familyname = request.form.get("familyname")
@@ -153,6 +207,7 @@ def signup():
 
 
 @app.route("/index")
+@is_db_initialized
 def index():
     user_id = session.get("user_id")
     if user_id:
@@ -179,6 +234,7 @@ def index():
 
 # organized review codes
 @app.route("/my_reviews")
+@is_db_initialized
 def reviews():
     user_id = session.get("user_id")
     if user_id:
@@ -194,12 +250,14 @@ def reviews():
 
 
 @app.route("/delete_review/<int:review_id>", methods=["POST"])
+@is_db_initialized
 def delete_review(review_id):
     result, message = deleteUserReview(review_id)
     return jsonify({"message": message}), result
 
 
 @app.route("/add-review/<int:product_id>", methods=["GET", "POST"])
+@is_db_initialized
 def add_review(product_id):
     user_id = session.get("user_id")
     if not user_id:
@@ -231,6 +289,7 @@ def add_review(product_id):
 
 
 @app.route("/submit_review", methods=["POST"])
+@is_db_initialized
 def submit_review():
     title = request.form.get("title")
     description = request.form.get("description")
@@ -263,6 +322,7 @@ def submit_review():
 
 
 @app.route("/search_reviews", methods=["POST"])
+@is_db_initialized
 def search_reviews():
     search_query = request.form.get("searchQueryInput", "")
     user_id = session.get("user_id")
@@ -285,6 +345,7 @@ def search_reviews():
 
 
 @app.route("/order_list")
+@is_db_initialized
 def order_list():
     user_id = session.get("user_id")
     if not user_id:
@@ -301,6 +362,7 @@ def order_list():
 
 
 @app.route("/search_products", methods=["GET", "POST"])
+@is_db_initialized
 def search_products():
     user_id = session.get("user_id")
     if not user_id:
@@ -326,21 +388,16 @@ def search_products():
 ## End of Cookies --->
 
 
-@app.route("/")
-def DB_operation():
-    session["db_status"] = "SQL"
-    return render_template("DB_operation.html")
-
-
-
 
 @app.route("/psubcategory")
+@is_db_initialized
 def psubcategory():
     p_gender = request.args.get("p_gender")
     return render_template("p-subcategory.html", p_gender=p_gender)
 
 
 @app.route("/products")
+@is_db_initialized
 def products():
     category_name = request.args.get("category_name")
     parent_category_id = request.args.get("parent_category_id")
@@ -364,6 +421,7 @@ def products():
 ### Display Products based on the gender in products.html ###
 # from index, when the user clicks on discover --> depends on the gender --> will be redirected to this page products.html
 @app.route("/products/<gender>")
+@is_db_initialized
 def display_products(gender):
     products = displayGenderProducts(gender, db)
     customer_id = session.get("user_id")
@@ -382,6 +440,7 @@ def display_products(gender):
 
 ### Route to display the selected Product details on single-product.html ###
 @app.route("/single-product.html/<product_id>", methods=["GET", "POST"])
+@is_db_initialized
 def single_product(product_id):
     product = fetchProductData(product_id, db)
     if request.method == "GET":
@@ -410,6 +469,7 @@ def single_product(product_id):
 
 ### Route to display the Cart's Content ###
 @app.route("/cart")
+@is_db_initialized
 def cart_display():
     customer_id = session.get("user_id")
 
@@ -444,6 +504,7 @@ def cart_display():
 
 ### Route to add items to the Cart: Backend ###
 @app.route("/add_to_cart", methods=["POST"])
+@is_db_initialized
 def add_to_cart():
     customer_id = session.get("user_id")
     try:
@@ -472,6 +533,7 @@ def add_to_cart():
 ### Hind Boufeligha REPORTING: Product Popularity ##
 ### Route to the most Popular Products in each Category within the last 6 month ###
 @app.route("/popular_products")
+@is_db_initialized
 def popular_products():
     customer_id = session.get("user_id")
 
@@ -487,33 +549,6 @@ def popular_products():
 
 
 ### END ###
-
-
-@app.route("/db_migration")
-def db_migration():
-    customer_id = session.get("user_id")
-    if customer_id:
-        customer_data = fetchCustomerData(customer_id, db)
-
-        return render_template("db_migration.html", user_data=customer_data)
-
-
-@app.route("/db_migrate")
-def db_migrate():
-    if session.get("db_status") == "SQL":
-        # migrate from sqlite to mongodb:
-        migrate_all_data(db, mongo_db)
-        # sql_drop_all(db=db)
-        # empty_tables(app, db)
-
-        # adjust migration status config:
-        app.config["DB_MIGRATION_STATUS"] = "NoSQL"
-        session["db_status"] = "NoSQL"
-        flash(message=f"Migration to NoSQL completed.", category="success")
-        return redirect(url_for("index"))
-    else:
-        flash(message="You already migrated to NoSQL.", category="info")
-        return redirect(url_for("db_migration"))
 
 
 if __name__ == "__main__":
