@@ -49,6 +49,9 @@ def migrate_all_data(db, mongo_db):
 
     # Perform SQL query to get products associated with wishlists from the join table wishlist_product_association
 
+    sql_query = text("SELECT * FROM customer_product_association")
+    df_order = pd.read_sql(sql_query, con=db.engine)
+    
     sql_query = text("SELECT * FROM wishlist_product_association")
     df_wishlist_product = pd.read_sql(sql_query, con=db.engine)
 
@@ -69,7 +72,7 @@ def migrate_all_data(db, mongo_db):
     df_cart["creation_date"] = pd.to_datetime(df_cart["creation_date"])
     df_review["post_date"] = pd.to_datetime(df_review["post_date"])
     df_payment["payment_date"] = pd.to_datetime(df_payment["payment_date"])
-    # df_customer_product["order_date"] = pd.to_datetime(df_cart["order_date"])
+    df_order["order_date"] = pd.to_datetime(df_order["order_date"])
 
     # 3: create Customer Collection in mongodb and embed Address
     customer_col = mongo_db["customer"]
@@ -164,7 +167,7 @@ def migrate_all_data(db, mongo_db):
 
     product_col.insert_many(products)
 
-    # 5: create Cart Collection in mongodb and embed Payment and reference to customer_id:
+    # 5: create Cart Collection in mongodb and embed Payment and reference to customer_id: 
     # Merge Cart and Payment dataframes to embed payment info within cart:
     df_merged = pd.merge(df_cart, df_payment, on="_id", how="left")
 
@@ -229,51 +232,41 @@ def migrate_all_data(db, mongo_db):
     cartitems = [row.dropna().to_dict() for _, row in df_cartitem.iterrows()]
     cartitem_col.insert_many(cartitems)
 
+    
     # 7: create Order Collection in mongodb:
+    # Rename columns to align with MongoDB document structure
+    df_order.rename(columns={"customerID": "customer_id", "productID": "product_id"}, inplace=True)
+    df_order["order_date"] = pd.to_datetime(df_order["order_date"])
+    
+    orders = df_order.to_dict(orient="records")
+
+    # Create Order Collection in MongoDB and index it
     order_col = mongo_db["order"]
-    order_col.create_index([("_id", pymongo.ASCENDING)])
+    order_col.create_index([("customer_id", pymongo.ASCENDING)])
+    order_col.create_index([("product_id", pymongo.ASCENDING)])
+    order_col.create_index([("order_date", pymongo.ASCENDING)])
 
-    # insert order
-    def add_order(order_id, customer_id, product_id):
-        if not db["CustomerTable"].find_one({"_id": customer_id}):
-            raise ValueError(f"Customer with ID {customer_id} does not exist.")
+    # Insert Orders into MongoDB
+    order_col.insert_many(orders)
 
-        if not db["ProductTable"].find_one({"_id": product_id}):
-            raise ValueError(f"Product with ID {product_id} does not exist.")
 
-        # If both checks pass, proceed to add the order
-        new_order = {
-            "order_id": order_id,
-            "customer_id": customer_id,
-            "product_id": product_id,
-            "order_date": datetime.now(),
-        }
-        return order_col.insert_one(new_order).inserted_id
 
-    # 8: create review Collection in mongodb:
+    # 8: create review Collection in mongodb and refrence it with customer_id and product_id
+    # Transform Review DataFrame for MongoDB
+    df_review.rename(columns={"customer_id": "customer_id", "product_id": "product_id"}, inplace=True)
+    df_review["post_date"] = pd.to_datetime(df_review["post_date"])
+
+    # Convert Review DataFrame to a list of dictionaries
+    reviews = df_review.to_dict(orient="records")
+
+    # Create Review Collection in MongoDB and index it
     review_col = mongo_db["review"]
     review_col.create_index([("_id", pymongo.ASCENDING)])
-    customer_col = mongo_db["CustomerTable"]
-    product_col = mongo_db["ProductTable"]
+    review_col.create_index([("customer_id", pymongo.ASCENDING)])
+    review_col.create_index([("product_id", pymongo.ASCENDING)])
 
-    # Function to add a review
-    def add_review(title, description, image_url, rating, customer_id, product_id):
-        if not customer_col.find_one({"_id": customer_id}):
-            raise ValueError(f"Customer with ID {customer_id} does not exist.")
-
-        if not product_col.find_one({"_id": product_id}):
-            raise ValueError(f"Product with ID {product_id} does not exist.")
-
-        new_review = {
-            "title": title,
-            "description": description,
-            "image_url": image_url,
-            "rating": rating,
-            "post_date": datetime.now(),
-            "customer_id": customer_id,
-            "product_id": product_id,
-        }
-        review_col.insert_one(new_review).inserted_id
+    # Insert Reviews into MongoDB
+    review_col.insert_many(reviews)
 
 
 
