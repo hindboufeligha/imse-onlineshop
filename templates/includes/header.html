@@ -100,7 +100,8 @@ https://templatemo.com/tm-571-hexashop
                                         <div class="sub-menu">
                                             <div class="user-info">
                                                 <img src="../../assets/images/user.png">
-                                                <h3><b>{{ user_data.username }}</b></h3>
+                                                <h3><b id="customer_username"></b></h3>
+
                                             </div>
                                             <hr>
 
@@ -191,3 +192,13 @@ https://templatemo.com/tm-571-hexashop
         </div>
     </header>
     <!-- ***** Header Area End ***** -->
+
+
+    <script>
+        var customer = JSON.parse('{{ user_data | tojson | safe }}');
+
+        //console.log('Customer Data:', customer);
+        var customer_username = customer.username;
+        // Displaythe user_name in the HTML element with id = customer
+        document.getElementById('customer_username').innerText = customer_username
+    </script>
