@@ -35,17 +35,17 @@ from bson import ObjectId
 import pandas as pd
 import numpy as np
 from lib.init_database_functions import *
-
 import json
 from bson import ObjectId
 
+
 def convert_to_serializable(obj):
-    """Convert non-serializable types to a serializable format"""
+    # Convert non-serializable types to a serializable format:
     if isinstance(obj, ObjectId):
         return str(obj)
     elif isinstance(obj, bytes):
         # Convert bytes to a string or other serializable format
-        return obj.decode('utf-8')
+        return obj.decode("utf-8")
     elif isinstance(obj, list):
         # Recursively convert elements in lists
         return [convert_to_serializable(item) for item in obj]
@@ -56,6 +56,7 @@ def convert_to_serializable(obj):
 
     # If the type is still not serializable, return a placeholder or None
     return obj
+
 
 def check_for_tables(db):
     with current_app.app_context():
@@ -234,16 +235,33 @@ def searchProducts(search_query):
     ).all()
 
 
-def addToCart(customer_id, request, db, mongo_db):
+# Generate and retrieve the next available _id for a cart item:
+def get_next_cart_item_id(mongo_db):
+    # Get the maximum existing cart item _id and increment it by 1
+    max_id = mongo_db.cart.aggregate(
+        [{"$group": {"_id": None, "max_id": {"$max": "$cart_items._id"}}}]
+    )
+
+    if max_id.alive:
+        next_id = max_id.next()["max_id"] + 1
+    else:
+        next_id = 1  # If there are no existing items, start from 1
+
+    print(f"Next available _id: {next_id}")
+    return next_id
+
+
+def addToCart(customer_id, request, db, mongo_db, db_status):
     product_id = request.json["product_id"]
-    # print("product ID:", product_id)
+    #print(product_id)
     size_name = request.json["size_name"]
     # print("size name:", size_name)
     selected_quantity = request.json["selected_quantity"]
 
-    tables = check_for_tables(db)
+    # tables = check_for_tables(db)
+    # if tables:
 
-    if tables:
+    if db_status == "SQL":
         # fetch the size id of the selected size:
         size_id = SizeTable.query.filter_by(size_name=size_name).first()
 
@@ -287,15 +305,68 @@ def addToCart(customer_id, request, db, mongo_db):
 
         db.session.commit()
 
-    # else:
-    # comment
+    else:
+        print("We are in MongoDB. addToCart")
+        cart = mongo_db.cart.find_one({"customer_id": customer_id, "status": "Active"})
+        if cart is None:
+            cart = {
+                "status": "Active",
+                "creation_date": datetime.utcnow(),
+                "customer_id": customer_id,
+                "cart_items": [],
+            }
+
+        # Check if the product and size already exist in the cart as a cart_item:
+        existing_item = next(
+            (
+                cart_item
+                for cart_item in cart["cart_items"]
+                if cart_item["product_id"] == product_id
+                and cart_item["size"] == size_name
+            ),
+            None,
+        )
+        if existing_item:
+            # If the same product and size already exist, just update the quantity:
+            existing_item["quantity"] += selected_quantity
+        # add it as a new cart_item:
+        else:
+            # Get the next available _id for the cart item:
+            cart_item_id = get_next_cart_item_id(mongo_db)
+            # If not, add it as a new cart_item:
+            new_cart_item = {
+                "_id": cart_item_id,
+                "size": size_name,
+                "quantity": selected_quantity,
+                "product_id": product_id,
+            }
+            cart["cart_items"].append(new_cart_item)
+
+        # Update the cart in the database
+        mongo_db.cart.update_one(
+            {"customer_id": customer_id, "status": "Active"},
+            {"$set": cart},
+            upsert=True,
+        )
 
 
-def displayCartItems(customer_id, db, mongo_db):
+def displayCartItems(customer_id, db, mongo_db, db_status):
     # fetch the cart_items associated with this customer: and then calculate the total cost for each size and product
-    tables = check_for_tables(db)
+    # tables = check_for_tables(db)
+    # if tables:
 
-    if tables:
+    if db_status == "NoSQL":
+        cart = mongo_db.cart.find_one({"customer_id": customer_id, "status": "Active"})
+        if cart:
+            cart_items = cart.get("cart_items", [])
+            return cart_items
+            # return jsonify({"cart_items": cart_items})
+
+        else:
+            return cart_items
+            # return jsonify({"message": "No active cart found for the user"})
+
+    else:
         # first, check if the customer has an Active cart or not:
         cart = CartTable.query.filter_by(
             customer_id=customer_id, status="Active"
@@ -362,19 +433,6 @@ def displayCartItems(customer_id, db, mongo_db):
         # Render the products page with the user's data and empty cart_items:
         return cart_items
 
-    else:
-        cart = mongo_db["cart"].find_one(
-            {"customer_id": customer_id, "status": "Active"}
-        )
-        if cart:
-            cart_items = cart.get("cart_items", [])
-            return cart_items
-            # return jsonify({"cart_items": cart_items})
-
-        else:
-            return cart_items
-            # return jsonify({"message": "No active cart found for the user"})
-
 
 def displayProducts(request, db, mongo_db):
     tables = check_for_tables(db)
@@ -404,36 +462,58 @@ def displayProducts(request, db, mongo_db):
         return products
 
 
-def displayGenderProducts(gender, db, mongo_db):
-    tables = check_for_tables(db)
+# DONE
+def displayGenderProducts(gender, db, mongo_db, db_status):
+    # tables = check_for_tables(db)
+    # if tables:
 
-    if tables:
-        products = ProductTable.query.filter_by(p_gender=gender).all()
+    if db_status == "NoSQL":
+        print("We are in MongoDB.")  # CHECK
+        print(gender)
+        # Find all products with the specified gender
+        products_cursor = mongo_db.product.find({"p_gender": gender})
+        # Convert cursor to list
+        products = list(products_cursor)
+        print(products)
+
         return products
 
     else:
-        # Find all products with the specified gender
-        products_cursor = db["products"].find({"gender": gender})
-        # Convert cursor to list
-        products = list(products_cursor)
-
+        print("We are in SQL db.")  # CHECK
+        products = ProductTable.query.filter_by(p_gender=gender).all()
+        print(products)
         return products
 
 
-def displaySingleProduct(product_id, request, db):
-    # Fetch sizes and quantities based on the product_id from SizeTable and product_size_association join table
-    sizes_quantities = (
-        db.session.query(SizeTable.size_name, product_size_association.c.quantity)
-        .join(product_size_association)
-        .filter(product_size_association.c.p_id == product_id)
-        .all()
-    )
+# DONE
+def displaySingleProduct(product_id, request, db, mongo_db, db_status):
+    if db_status == "NoSQL":
+        print("We are in MongoDB. displaySingleProduct")  # CHECK
+        product_id = int(product_id)
+        product_data = mongo_db.product.find_one({"_id": product_id})
+        if product_data:
+            sizes = product_data.get("sizes", [])
+            print(sizes)
+            print(type(sizes))
+            return sizes
+        else:
+            return None
 
-    sizes = [
-        {"name": size, "quantity": quantity} for size, quantity in sizes_quantities
-    ]
-
-    return sizes
+    else:
+        print("We are in SQL db.")  # CHECK
+        # Fetch sizes and quantities based on the product_id from SizeTable and product_size_association join table
+        sizes_quantities = (
+            db.session.query(SizeTable.size_name, product_size_association.c.quantity)
+            .join(product_size_association)
+            .filter(product_size_association.c.p_id == product_id)
+            .all()
+        )
+        sizes = [
+            {"name": size, "quantity": quantity} for size, quantity in sizes_quantities
+        ]
+        print(sizes)
+        print(type(sizes))
+        return sizes
 
 
 def displayPopularProducts(db, mongo_db):  # user_id is stored in the session
@@ -498,23 +578,26 @@ def displayPopularProducts(db, mongo_db):  # user_id is stored in the session
     # return {'data': result_data}
 
 
+# DONE
 def fetchCustomerData(customer_id, db, mongo_db, db_status):
     tables = check_for_tables(db)
 
     # Check if there are any tables
     if db_status == "NoSQL":
-        print("We are in MongoDB.")
+        print("We are in MongoDB.")  # CHECK
         customer_data = mongo_db.customer.find_one({"_id": customer_id})
         # customer_data = mongo_db["customer"].find_one({"_id": customer_id})
         if customer_data:
-            customer_data = convert_to_serializable(customer_data)  # Convert to serializabler
+            customer_data = convert_to_serializable(
+                customer_data
+            )  # Convert to serializabler
             return customer_data
 
         else:
             return None
 
     else:
-        print("We are in SQL db.")
+        print("We are in SQL db.")  # CHECK
         customer_data = CustomerTable.query.filter_by(customer_id=customer_id).first()
         customer_data = (
             json.dumps(
@@ -527,16 +610,25 @@ def fetchCustomerData(customer_id, db, mongo_db, db_status):
         return customer_data
 
 
-def fetchProductData(product_id, db, mongo_db):
-    tables = check_for_tables(db)
+# DONE
+def fetchProductData(product_id, db, mongo_db, db_status):
+    # tables = check_for_tables(db)
+    # if tables:
 
-    if tables:
-        product_data = ProductTable.query.get(product_id)
-        return product_data
+    if db_status == "NoSQL":
+        print("We are in MongoDB. fetchProductData")  # CHECK
+        product_id = int(product_id)
+        product_data = mongo_db["product"].find_one({"_id": product_id})
+        if product_data:
+            return product_data
+        else:
+            return None
 
     else:
-        product_data = mongo_db["product"].find_one({"_id": product_id})
-        return product_data
+        print("We are in SQL db.")  # CHECK
+        product_data = ProductTable.query.get(product_id)
+        if product_data:
+            return product_data
 
-
-# comment
+        else:
+            return None

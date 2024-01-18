@@ -1,15 +1,17 @@
 /* Add your custom styles here if needed */
 
 body {
-    text-align: center;
-    margin-top: 70px;
+  text-align: center;
+  margin-top: 70px;
 }
-h1{
-    margin-bottom: 100px;
+
+h1 {
+  margin-bottom: 100px;
 }
 
 .button {
-  background-color: #04AA6D; /* Green */
+  background-color: #04AA6D;
+  /* Green */
   border: none;
   color: white;
   padding: 16px 32px;
@@ -21,11 +23,13 @@ h1{
   transition-duration: 0.4s;
   cursor: pointer;
 }
+
 .button {
   background-color: white;
   color: black;
   border: 2px solid #555555;
 }
+
 .button:hover {
   background-color: #555555;
   color: white;
@@ -38,7 +42,7 @@ a {
   padding: 10px 20px;
   margin-top: 20px;
   text-decoration: none;
-  background-color:  #555555;
+  background-color: #555555;
   color: #fff;
   border: none;
   border-radius: 4px;
@@ -47,5 +51,5 @@ a {
 }
 
 a:hover {
-  background-color:black;
+  background-color: black;
 }

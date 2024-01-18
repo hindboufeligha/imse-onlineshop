@@ -55,9 +55,6 @@ reset_mongodb(mongo)
 mongo_db = mongo.db
 
 
-# Explicitly set the template folder
-# app.template_folder = "templates"
-
 # engine = create_engine(app.config["SQLALCHEMY_DATABASE_URI"])
 db.init_app(app)
 
@@ -71,16 +68,15 @@ def is_category_table_empty():
 
 
 def is_db_initialized(f):
-    """check if database has been initialized"""
+    # check if SQL db has been initialized
 
     @wraps(f)
     def wrap(*args, **kwargs):
         if app.config["DB_MIGRATION_STATUS"] in ["SQL", "NoSQL"]:
             return f(*args, **kwargs)
         else:
-            flash(
-                message="Unauthorized. Please initialize database.", category="danger"
-            )
+            print("Please initialize the SQL database first.")
+            flash(message="Please initialize the SQL database first.", category="error")
             return redirect(url_for("DB_operation"))
 
     return wrap
@@ -393,16 +389,19 @@ def products():
 @app.route("/products/<gender>")
 @is_db_initialized
 def display_products(gender):
-    products = displayGenderProducts(gender, db, mongo_db)
-    customer_id = session.get("user_id")
     db_status = session.get("db_status")
-
+    products = displayGenderProducts(gender, db, mongo_db, db_status)
+    customer_id = session.get("user_id")
     if customer_id:
         user_data = fetchCustomerData(customer_id, db, mongo_db, db_status)
         if user_data:
             # Render the products page with the user's data
             return render_template(
-                "products.html", user_data=user_data, products=products, p_gender=gender
+                "products.html",
+                user_data=user_data,
+                products=products,
+                p_gender=gender,
+                db_status=db_status,
             )
 
 
@@ -413,16 +412,15 @@ def display_products(gender):
 @app.route("/single-product.html/<product_id>", methods=["GET", "POST"])
 @is_db_initialized
 def single_product(product_id):
-    product = fetchProductData(product_id, db, mongo_db)
+    db_status = session.get("db_status")
+    product = fetchProductData(product_id, db, mongo_db, db_status)
     if request.method == "GET":
-        sizes = displaySingleProduct(product_id, request, db)
+        sizes = displaySingleProduct(product_id, request, db, mongo_db, db_status)
 
     elif request.method == "POST":
         # selected_size = request.form.get("size")
         # selected_quantity = request.form.get("quantity")
         # Perform actions with the selected size and quantity (e.g., add to cart)
-        # You can redirect to the cart page or perform additional logic here
-        # A MODIER PLUS TARD
         add_to_cart()
         return redirect(url_for("cart_display"))
 
@@ -432,7 +430,11 @@ def single_product(product_id):
         user_data = fetchCustomerData(customer_id, db, mongo_db, db_status)
         if user_data:
             return render_template(
-                "single-product.html", user_data=user_data, product=product, sizes=sizes
+                "single-product.html",
+                user_data=user_data,
+                product=product,
+                sizes=sizes,
+                db_status=db_status,
             )
 
 
@@ -449,7 +451,7 @@ def cart_display():
     if customer_id:
         user_data = fetchCustomerData(customer_id, db, mongo_db, db_status)
         if user_data:
-            cart_items = displayCartItems(customer_id, db, mongo_db)
+            cart_items = displayCartItems(customer_id, db, mongo_db, db_status)
 
             # Convert the query result to a list of dictionaries
             cart_items_quantity_price = [
@@ -479,9 +481,10 @@ def cart_display():
 @app.route("/add_to_cart", methods=["POST"])
 @is_db_initialized
 def add_to_cart():
+    db_status = session.get("db_status")
     customer_id = session.get("user_id")
     try:
-        addToCart(customer_id, request, db, mongo_db)
+        addToCart(customer_id, request, db, mongo_db, db_status)
         return jsonify({"message": "Item added to the cart successfully!"}), 200
 
     except IntegrityError:
@@ -548,10 +551,10 @@ def db_migrate():
         session["user_id"] = customer_id
         customer_data = fetchCustomerData(customer_id, db, mongo_db, db_status)
 
-        print(customer_id)
-        print(type(customer_data))
-        print("######")
-        print(customer_data)
+        # print(customer_id)
+        # print(type(customer_data))
+        # print("######")
+        # print(customer_data)
         if customer_data:
             # adjust migration status config:
             app.config["DB_MIGRATION_STATUS"] = "NoSQL"
