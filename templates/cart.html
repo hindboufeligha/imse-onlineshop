@@ -10,8 +10,8 @@
             <tr>
                 <th>Item</th>
                 <th>Size</th>
+                <th>Price/Item</th>
                 <th>Quantity</th>
-                <th>Price</th>
                 <th>Total Price</th>
             </tr>
         </thead>
@@ -20,9 +20,9 @@
             <tr>
                 <td>{{ item.p_name }}</td>
                 <td>{{ item.size_name }}</td>
+                <td><span class="item-price">{{ item.p_price|round(2) }} €</span></td>
                 <td><span class="quantity">{{ item.quantity }}</span></td>
-                <td><span class="item-price">{{ item.p_price }} €</span></td>
-                <td><span class="total-price" id="total_price"></span></td>
+                <td><span class="total-price">{{ item.total_price|round(2) }} €</span></td>
 
             </tr>
 
@@ -34,7 +34,7 @@
         <tfoot>
             <tr>
                 <td colspan="3" class="text-right"><strong>Total Cost:</strong></td>
-                <td><strong>35.00 €</strong></td>
+                <td><strong>{{ total_cost|round(2) }} €</strong></td>
             </tr>
         </tfoot>
 
@@ -136,25 +136,31 @@
     // JavaScript code to fetch and update cart items
     fetch('/cart')  // Replace with the actual endpoint for getting cart items
         .then(response => response.json())
-        .then(cartItems => {
+        .then(items => {
             // Process the received cart items and update the table
-            updateCartTable(cartItems);
+            updateCartTable(items);
         })
         .catch(error => {
             console.error('Error fetching cart items:', error);
         });
 
-    function updateCartTable(cartItems) {
+    function updateCartTable(items) {
         var tableBody = document.getElementById('cartTable').querySelector('tbody');
+        const total = parseFloat(cartItem.quantity) * parseFloat(cartItem.p_price);
+        console.log("HEY:");
+        console.log("Quantity:", parseFloat(cartItem.quantity));
+        console.log("Price:", parseFloat(cartItem.price));
+        console.log("Total Price:", total);
 
-        cartItems.forEach(function (cartItem) {
+
+        items.forEach(function (cartItem) {
             var row = document.createElement('tr');
             row.innerHTML = `
                 <td>${cartItem.p_name}</td>
                 <td>${cartItem.size_name}</td>
                 <td><span class="quantity">${cartItem.quantity}</span></td>
                 <td><span class="item-price">${cartItem.p_price} €</span></td>
-                <td><span class="total-price"></span></td>
+                <td><span class="total-price">">${total} €</span></td>
             `;
             tableBody.appendChild(row);
         });
