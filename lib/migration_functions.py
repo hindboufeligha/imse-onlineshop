@@ -51,7 +51,7 @@ def migrate_all_data(db, mongo_db):
 
     sql_query = text("SELECT * FROM customer_product_association")
     df_order = pd.read_sql(sql_query, con=db.engine)
-    
+
     sql_query = text("SELECT * FROM wishlist_product_association")
     df_wishlist_product = pd.read_sql(sql_query, con=db.engine)
 
@@ -167,7 +167,7 @@ def migrate_all_data(db, mongo_db):
 
     product_col.insert_many(products)
 
-    # 5: create Cart Collection in mongodb and embed Payment and reference to customer_id: 
+    # 5: create Cart Collection in mongodb and embed Payment and reference to customer_id:
     # Merge Cart and Payment dataframes to embed payment info within cart:
     df_merged = pd.merge(df_cart, df_payment, on="_id", how="left")
 
@@ -237,12 +237,13 @@ def migrate_all_data(db, mongo_db):
     cartitems = [row.dropna().to_dict() for _, row in df_cartitem.iterrows()]
     cartitem_col.insert_many(cartitems)
 
-    
     # 7: create Order Collection in mongodb:
     # Rename columns to align with MongoDB document structure
-    df_order.rename(columns={"customerID": "customer_id", "productID": "product_id"}, inplace=True)
+    df_order.rename(
+        columns={"customerID": "customer_id", "productID": "product_id"}, inplace=True
+    )
     df_order["order_date"] = pd.to_datetime(df_order["order_date"])
-    
+
     orders = df_order.to_dict(orient="records")
 
     # Create Order Collection in MongoDB and index it
@@ -254,11 +255,11 @@ def migrate_all_data(db, mongo_db):
     # Insert Orders into MongoDB
     order_col.insert_many(orders)
 
-
-
     # 8: create review Collection in mongodb and refrence it with customer_id and product_id
     # Transform Review DataFrame for MongoDB
-    df_review.rename(columns={"customer_id": "customer_id", "product_id": "product_id"}, inplace=True)
+    df_review.rename(
+        columns={"customer_id": "customer_id", "product_id": "product_id"}, inplace=True
+    )
     df_review["post_date"] = pd.to_datetime(df_review["post_date"])
 
     # Convert Review DataFrame to a list of dictionaries
@@ -272,8 +273,6 @@ def migrate_all_data(db, mongo_db):
 
     # Insert Reviews into MongoDB
     review_col.insert_many(reviews)
-
-
 
     # 9: create Size collection in mongodb:
     size_col = mongo_db["size"]
