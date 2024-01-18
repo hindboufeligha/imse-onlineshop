@@ -69,6 +69,16 @@ def is_category_table_empty():
     return count == 0
 
 
+def logged_in(f):
+    """ check if user is logged in """
+    @wraps(f)
+    def wrap(*args, **kwargs):
+        if session.get('user_id'):
+            return f(*args, **kwargs)
+        else:
+            flash(message='Unauthorized. Please log in.', category='danger')
+            return redirect(url_for('login'))
+    return wrap
 
 
 
@@ -163,6 +173,25 @@ def login():
         return render_template("login.html", error_message=error_message)
 
 
+
+@app.route("/login", methods=["GET", "POST"])
+@is_db_initialized
+def login():
+    if request.method == "POST":
+        email = request.form.get("email")
+        password = request.form.get("password")
+        user, is_valid = validate_user_credentials(email, password)
+        if is_valid:
+            session["user_id"] = user.customer_id
+            flash("Welcome back!", "success")
+            return redirect(url_for("index"))
+        else:
+            flash("Invalid email or password.", "danger")
+    
+    return render_template("login.html")
+
+
+
 @app.route("/logout")
 def logout():
     session.pop("user_id", None)
@@ -208,6 +237,7 @@ def signup():
 
 @app.route("/index")
 @is_db_initialized
+@logged_in
 def index():
     user_id = session.get("user_id")
     if user_id:
@@ -235,6 +265,7 @@ def index():
 # organized review codes
 @app.route("/my_reviews")
 @is_db_initialized
+@logged_in
 def reviews():
     user_id = session.get("user_id")
     if user_id:
@@ -251,6 +282,7 @@ def reviews():
 
 @app.route("/delete_review/<int:review_id>", methods=["POST"])
 @is_db_initialized
+@logged_in
 def delete_review(review_id):
     result, message = deleteUserReview(review_id)
     return jsonify({"message": message}), result
@@ -258,6 +290,7 @@ def delete_review(review_id):
 
 @app.route("/add-review/<int:product_id>", methods=["GET", "POST"])
 @is_db_initialized
+@logged_in
 def add_review(product_id):
     user_id = session.get("user_id")
     if not user_id:
@@ -290,6 +323,7 @@ def add_review(product_id):
 
 @app.route("/submit_review", methods=["POST"])
 @is_db_initialized
+@logged_in
 def submit_review():
     title = request.form.get("title")
     description = request.form.get("description")
@@ -323,6 +357,7 @@ def submit_review():
 
 @app.route("/search_reviews", methods=["POST"])
 @is_db_initialized
+@logged_in
 def search_reviews():
     search_query = request.form.get("searchQueryInput", "")
     user_id = session.get("user_id")
@@ -346,6 +381,7 @@ def search_reviews():
 
 @app.route("/order_list")
 @is_db_initialized
+@logged_in
 def order_list():
     user_id = session.get("user_id")
     if not user_id:
@@ -363,6 +399,7 @@ def order_list():
 
 @app.route("/search_products", methods=["GET", "POST"])
 @is_db_initialized
+@logged_in
 def search_products():
     user_id = session.get("user_id")
     if not user_id:
@@ -391,6 +428,7 @@ def search_products():
 
 @app.route("/psubcategory")
 @is_db_initialized
+@logged_in
 def psubcategory():
     p_gender = request.args.get("p_gender")
     return render_template("p-subcategory.html", p_gender=p_gender)
@@ -398,6 +436,7 @@ def psubcategory():
 
 @app.route("/products")
 @is_db_initialized
+@logged_in
 def products():
     category_name = request.args.get("category_name")
     parent_category_id = request.args.get("parent_category_id")
@@ -422,6 +461,7 @@ def products():
 # from index, when the user clicks on discover --> depends on the gender --> will be redirected to this page products.html
 @app.route("/products/<gender>")
 @is_db_initialized
+@logged_in
 def display_products(gender):
     products = displayGenderProducts(gender, db)
     customer_id = session.get("user_id")
@@ -441,6 +481,7 @@ def display_products(gender):
 ### Route to display the selected Product details on single-product.html ###
 @app.route("/single-product.html/<product_id>", methods=["GET", "POST"])
 @is_db_initialized
+@logged_in
 def single_product(product_id):
     product = fetchProductData(product_id, db)
     if request.method == "GET":
@@ -470,6 +511,7 @@ def single_product(product_id):
 ### Route to display the Cart's Content ###
 @app.route("/cart")
 @is_db_initialized
+@logged_in
 def cart_display():
     customer_id = session.get("user_id")
 
@@ -505,6 +547,7 @@ def cart_display():
 ### Route to add items to the Cart: Backend ###
 @app.route("/add_to_cart", methods=["POST"])
 @is_db_initialized
+@logged_in
 def add_to_cart():
     customer_id = session.get("user_id")
     try:
@@ -549,6 +592,35 @@ def popular_products():
 
 
 ### END ###
+
+
+@app.route("/db_migrate", methods=['GET', 'POST'])
+@is_db_initialized
+@logged_in
+def db_migrate():
+    user_id = session.get("user_id")
+    if not user_id:
+        flash("User not logged in.", "danger")
+        return redirect(url_for("login"))
+
+    user_data = userData(user_id)
+    if not user_data:
+        # Handle the absence of user data, but continue with migration
+        flash("Proceeding with migration without specific user data.", "info")
+
+    if session.get("db_status") == "SQL":
+        # Proceed with migration
+        migrate_all_data(db, mongo_db)
+        emptyDatabase(app, db)
+
+        app.config["DB_MIGRATION_STATUS"] = "NoSQL"
+        session["db_status"] = "NoSQL"
+        flash("Migration to NoSQL completed.", "success")
+        return redirect(url_for("index"))
+    else:
+        flash("You already migrated to NoSQL.", "info")
+        return redirect(url_for("db_migration"))
+
 
 
 if __name__ == "__main__":

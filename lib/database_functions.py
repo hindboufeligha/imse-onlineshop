@@ -29,14 +29,21 @@ from sqlalchemy import func, desc
 from datetime import datetime, timedelta
 from flask_pymongo import PyMongo
 from bson import ObjectId
+import logging
+
 
 
 
 def emptyDatabase(app, db):
     with app.app_context():
-        db.reflect()
-        db.drop_all()
-        db.create_all()
+        try:
+            db.reflect()
+            db.drop_all()
+            db.create_all()
+            logging.info("Database tables dropped and recreated successfully.")
+        except Exception as e:
+            logging.error(f"Error occurred while emptying the database: {e}")
+            # Handle the exception as needed (e.g., rollback, log to file, etc.)
 
 
 def validate_user_credentials(email, password):
