@@ -451,24 +451,55 @@ def cart_display():
     if customer_id:
         user_data = fetchCustomerData(customer_id, db, mongo_db, db_status)
         if user_data:
-            cart_items = displayCartItems(customer_id, db, mongo_db, db_status)
+            if db_status == "SQL":
+                cart_items = displayCartItems(customer_id, db, mongo_db, db_status)
+                # Convert the query result to a list of dictionaries
+                cart_items_quantity_price = [
+                    {
+                        "p_id": item.p_id,
+                        "p_name": item.p_name,
+                        "size_name": item.size,
+                        "quantity": item.quantity,
+                        "p_price": float(item.p_price),  # Convert to float if needed
+                    }
+                    for item in cart_items
+                ]
 
-            # Convert the query result to a list of dictionaries
-            cart_items_quantity_price = [
-                {
-                    "p_id": item.p_id,
-                    "p_name": item.p_name,
-                    "size_name": item.size,
-                    "quantity": item.quantity,
-                    "p_price": float(item.p_price),  # Convert to float if needed
-                }
-                for item in cart_items
-            ]
+                total_cost = 0
+                for item in cart_items_quantity_price:
+                    item["total_price"] = item["quantity"] * item["p_price"]
+                    total_cost += item["total_price"]
 
-            total_cost = 0
-            for item in cart_items_quantity_price:
-                item["total_price"] = item["quantity"] * item["p_price"]
-                total_cost += item["total_price"]
+            else:
+                cart_items = displayCartItems(customer_id, db, mongo_db, db_status)
+                print(cart_items)
+                cart_items_quantity_price = []
+                
+                for item in cart_items:
+
+                    product_data = fetchProductData(
+                        item["product_id"], db, mongo_db, db_status
+                    )
+
+                    cart_item_quantity_price = {
+                            "p_id": item["product_id"],
+                            "p_name": product_data[
+                                "p_name"
+                            ],  # retrieve from product document
+                            "size_name": item["size"],
+                            "quantity": item["quantity"],
+                            "p_price": float(
+                                product_data["p_price"]
+                            ),  # retrieve from product document
+                        }
+                       
+
+                    cart_items_quantity_price.append(cart_item_quantity_price)
+                    total_cost = 0
+                    
+                for item in cart_items_quantity_price:
+                        item["total_price"] = item["quantity"] * item["p_price"]
+                        total_cost += item["total_price"]
 
             # Render the products page with the user's data and cart_items:
             return render_template(
@@ -476,7 +507,7 @@ def cart_display():
                 user_data=user_data,
                 cart_items=cart_items,
                 items=cart_items_quantity_price,
-                total_cost = total_cost,
+                total_cost=total_cost,
             )
 
 

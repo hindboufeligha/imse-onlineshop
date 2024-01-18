@@ -235,20 +235,7 @@ def searchProducts(search_query):
     ).all()
 
 
-# Generate and retrieve the next available _id for a cart item:
-def get_next_cart_item_id(mongo_db):
-    # Get the maximum existing cart item _id and increment it by 1
-    max_id = mongo_db.cart.aggregate(
-        [{"$group": {"_id": None, "max_id": {"$max": "$cart_items._id"}}}]
-    )
 
-    if max_id.alive:
-        next_id = max_id.next()["max_id"] + 1
-    else:
-        next_id = 1  # If there are no existing items, start from 1
-
-    print(f"Next available _id: {next_id}")
-    return next_id
 
 
 # DONE
@@ -398,7 +385,7 @@ def addToCart(customer_id, request, db, mongo_db, db_status):
         # Insert the new cart item into the cart_items collection
         mongo_db.cartitem.insert_one(new_cart_item)
 
-
+# DONE
 def displayCartItems(customer_id, db, mongo_db, db_status):
     # fetch the cart_items associated with this customer: and then calculate the total cost for each size and product
     # tables = check_for_tables(db)
