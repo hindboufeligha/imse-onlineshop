@@ -253,7 +253,7 @@ def get_next_cart_item_id(mongo_db):
 
 def addToCart(customer_id, request, db, mongo_db, db_status):
     product_id = request.json["product_id"]
-    #print(product_id)
+    # print(product_id)
     size_name = request.json["size_name"]
     # print("size name:", size_name)
     selected_quantity = request.json["selected_quantity"]
@@ -310,13 +310,18 @@ def addToCart(customer_id, request, db, mongo_db, db_status):
         cart = mongo_db.cart.find_one({"customer_id": customer_id, "status": "Active"})
         if cart is None:
             cart = {
+                "_id": 1,
                 "status": "Active",
                 "creation_date": datetime.utcnow(),
                 "customer_id": customer_id,
                 "cart_items": [],
             }
 
-        # Check if the product and size already exist in the cart as a cart_item:
+            cart_id = 1
+        else:
+            cart_id = cart["_id"]
+
+        # Check if the product and size already exist in the cart col:
         existing_item = next(
             (
                 cart_item
@@ -326,28 +331,71 @@ def addToCart(customer_id, request, db, mongo_db, db_status):
             ),
             None,
         )
-        if existing_item:
-            # If the same product and size already exist, just update the quantity:
+
+        # Check if the product and size already exist in the cartitem col:
+        existing_cartitem = mongo_db.cartitem.find_one(
+            {
+                "cart_id": cart_id,
+                "product_id": product_id,
+                "size": size_name,
+            }
+        )
+
+        if existing_item and existing_cartitem:
+            # If the same product and size already exist in cart and cartitem collections, just update the quantity:
             existing_item["quantity"] += selected_quantity
+            existing_cartitem["quantity"] += selected_quantity
+
+            # Update the cartitem in the database:
+            mongo_db.cartitem.update_one(
+                {
+                    "cart_id": cart_id,
+                    "product_id": product_id,
+                    "size": size_name,
+                },
+                {"$set": existing_cartitem},
+                upsert=True,
+            )
+
         # add it as a new cart_item:
         else:
+            print("you are in else!")
             # Get the next available _id for the cart item:
-            cart_item_id = get_next_cart_item_id(mongo_db)
             # If not, add it as a new cart_item:
             new_cart_item = {
-                "_id": cart_item_id,
                 "size": size_name,
                 "quantity": selected_quantity,
                 "product_id": product_id,
             }
             cart["cart_items"].append(new_cart_item)
+            print(new_cart_item)
 
-        # Update the cart in the database
+            # Now, Update the cartitem collectiın in the database, by adding/updating the new cartitem document:
+            # Get the max existing cart item _id:
+            # Find the last cart item in the cart_items collection
+            last_cart_item = mongo_db.cartitem.find_one(sort=[("_id", -1)])
+
+            # Get the last _id and increment it by 1:
+            next_id = last_cart_item["_id"] + 1 if last_cart_item else 1
+
+            # Create a new cart item document
+            new_cart_item = {
+                "_id": next_id,
+                "size": size_name,
+                "quantity": selected_quantity,
+                "cart_id": cart_id,
+                "product_id": product_id,
+            }
+
+        # Update the cart in the database:
         mongo_db.cart.update_one(
             {"customer_id": customer_id, "status": "Active"},
             {"$set": cart},
             upsert=True,
         )
+
+        # Insert the new cart item into the cart_items collection
+        mongo_db.cartitem.insert_one(new_cart_item)
 
 
 def displayCartItems(customer_id, db, mongo_db, db_status):

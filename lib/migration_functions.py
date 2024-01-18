@@ -116,7 +116,7 @@ def migrate_all_data(db, mongo_db):
 
             wishlist["product_ids"] = wishlist_product_ids
 
-        # Remove p_id from each size dictionary
+        # Remove customer_id from each wishlists dictionary
         for wishlist in wishlists:
             wishlist.pop("customer_id", None)
 
@@ -207,12 +207,17 @@ def migrate_all_data(db, mongo_db):
             orient="records"
         )
 
-        # Remove p_id from each size dictionary
+        # Remove cart_id from each size dictionary
         for cartitem in cartitems:
             cartitem.pop("cart_id", None)
 
         # Embed CartItem within each Cart document:
         cart["cart_items"] = cartitems
+        # Remove cart_item_id from each cartitems dictionary
+        for cart_item in cartitems:
+            cart_item.pop("_id", None)
+
+        customer["wishlists"] = wishlists
 
     # print(carts[:5]) TEST
     # Insert Carts into mongodb:
