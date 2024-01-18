@@ -42,11 +42,26 @@
                         <!-- Hover Content for additional actions -->
                         <div class="hover-content">
                             <ul>
+                                {% if db_status == "SQL" %}
                                 <li><a href="{{ url_for('single_product', product_id=product.p_id) }}"><i
                                             class="fa fa-eye"></i></a></li>
                                 <li><a href="{{ url_for('add_review', product_id=product.p_id) }}"><i
                                             class="fa fa-star"></i></a></li>
                                 <li><a href="{{ url_for('cart_display') }}"><i class="fa fa-shopping-cart"></i></a></li>
+
+                                {% elif db_status == "NoSQL" %}
+                                <li><a href="{{ url_for('single_product', product_id=product._id) }}"><i
+                                            class="fa fa-eye"></i></a></li>
+                                <li><a href="{{ url_for('add_review', product_id=product._id) }}"><i
+                                            class="fa fa-star"></i></a></li>
+                                <li><a href="{{ url_for('cart_display') }}"><i class="fa fa-shopping-cart"></i></a></li>
+
+                                {% else %}
+                                <li><a href="#"><i class="fa fa-eye"></i></a></li>
+                                <li><a href="#"><i class="fa fa-star"></i></a></li>
+                                <li><a href="#"><i class="fa fa-shopping-cart"></i></a></li>
+                                {% endif %}
+
                             </ul>
                         </div>
                     </div>

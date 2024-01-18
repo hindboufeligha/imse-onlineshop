@@ -13,6 +13,7 @@ import bcrypt
 
 db = SQLAlchemy()
 
+
 # def create_database(app):
 # with app.app_context():
 # db.create_all()
@@ -62,6 +63,11 @@ class CustomerTable(db.Model):
     reviews = db.relationship("ReviewTable", backref="customer", lazy=True)
     wishlists = db.relationship("WishlistTable", backref="customer", lazy=True)
     carts = db.relationship("CartTable", backref="customer", lazy=True)
+
+    def as_dict(self):
+        return {
+            column.name: getattr(self, column.name) for column in self.__table__.columns
+        }
 
 
 class AddressTable(db.Model):

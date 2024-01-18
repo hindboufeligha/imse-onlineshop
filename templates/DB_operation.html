@@ -1,6 +1,36 @@
 <!DOCTYPE html>
 <html lang="en">
 
+<!-- Full-screen overlay for the background 
+<div class="overlay" id="overlay"></div> -->
+
+{% with messages = get_flashed_messages() %}
+{% if messages %}
+<ul class="flashes">
+    {% for message in messages %}
+    {% if category == "success" %}
+    <li class="success">{{ message }}</li>
+    {% elif category == "error" %}
+    <li class="error">{{ message }}</li>
+    {% elif category == "info" %}
+    <li class="info">{{ message }}</li>
+    {% else %}
+    <li>{{ message }}</li>
+    {% endif %}
+    {% endfor %}
+</ul>
+<!--
+<script>
+setTimeout(function () {
+    document.getElementById('overlay').style.display = 'none';
+}, 2000);
+</script>
+-->
+{% endif %}
+{% endwith %}
+
+
+
 <head>
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
@@ -8,6 +38,9 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/DB_operation.css') }}">
     <title>Database Operations</title>
 </head>
+
+
+
 
 <body>
     <h1>Database Operations</h1>
@@ -22,6 +55,9 @@
 
     <a href="{{ url_for('login') }}">Go to Login Page</a></br>
     <a href="{{ url_for('signup') }}">Go to Signup Page</a>
+
+
+
 </body>
 
 </html>

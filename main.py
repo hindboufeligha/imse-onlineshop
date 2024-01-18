@@ -9,6 +9,7 @@ from flask import (
     send_from_directory,
     flash,
 )
+from sqlalchemy import MetaData
 from flask_session import Session
 from flask_bcrypt import Bcrypt
 from bcrypt import hashpw, gensalt
@@ -53,9 +54,6 @@ reset_mongodb(mongo)
 # access the MongoDB database using the 'db' attribute of the 'mongo' object
 mongo_db = mongo.db
 
-
-# Explicitly set the template folder
-# app.template_folder = "templates"
 
 # engine = create_engine(app.config["SQLALCHEMY_DATABASE_URI"])
 db.init_app(app)
@@ -118,18 +116,18 @@ def db_migrate():
 
 
 def is_db_initialized(f):
-    """ check if database has been initialized """
+    # check if SQL db has been initialized
+
     @wraps(f)
     def wrap(*args, **kwargs):
-        if app.config['DB_MIGRATION_STATUS'] in ['SQL', 'NoSQL']:
+        if app.config["DB_MIGRATION_STATUS"] in ["SQL", "NoSQL"]:
             return f(*args, **kwargs)
         else:
-            flash(message='Unauthorized. Please initialize database.', category='danger')
-            return redirect(url_for('DB_operation'))
+            print("Please initialize the SQL database first.")
+            flash(message="Please initialize the SQL database first.", category="error")
+            return redirect(url_for("DB_operation"))
+
     return wrap
-
-
-
 
 
 @app.route("/fill_database", methods=["POST"])
@@ -149,12 +147,10 @@ def empty_database():
     return redirect(url_for("DB_operation"))
 
 
-
 @app.route("/login", methods=["GET"])
 @is_db_initialized
 def show_login():
     return render_template("login.html")
-
 
 
 @app.route("/login", methods=["POST"])
@@ -204,7 +200,6 @@ def show_signup():
     return render_template("signup.html")
 
 
-
 @app.route("/signup", methods=["POST"])
 @is_db_initialized
 def signup():
@@ -234,14 +229,16 @@ def signup():
     return redirect(url_for("show_login"))
 
 
-
 @app.route("/index")
 @is_db_initialized
 @logged_in
 def index():
     user_id = session.get("user_id")
+    db_status = session.get("db_status")
     if user_id:
-        user_data = userData(user_id)
+        user_data = fetchCustomerData(user_id, db, mongo_db, db_status)
+        print(type(user_data))
+        print(user_data)
         if user_data:
             top_male_products = TopProducts("Male")
             top_female_products = TopProducts("Female")
@@ -261,15 +258,16 @@ def index():
         return redirect(url_for("show_login"))
 
 
-
 # organized review codes
 @app.route("/my_reviews")
 @is_db_initialized
 @logged_in
 def reviews():
     user_id = session.get("user_id")
+    db_status = session.get("db_status")
     if user_id:
-        user_reviews, user_data = userReviews(user_id)
+        user_reviews = userReviews(user_id)
+        user_data = fetchCustomerData(user_id, db, mongo_db, db_status)
         if not user_data:
             return "User data not found", 404
 
@@ -293,10 +291,11 @@ def delete_review(review_id):
 @logged_in
 def add_review(product_id):
     user_id = session.get("user_id")
+    db_status = session.get("db_status")
     if not user_id:
         return redirect(url_for("show_login"))
 
-    user_data = userData(user_id)
+    user_data = fetchCustomerData(user_id, db, mongo_db, db_status)
     if not user_data:
         flash("User data not found", "error")
         return redirect(url_for("index"))
@@ -328,9 +327,7 @@ def submit_review():
     title = request.form.get("title")
     description = request.form.get("description")
     rating = request.form.get("rating")
-    product_id = request.form.get(
-        "product_id"
-    )  
+    product_id = request.form.get("product_id")
 
     if not product_id:
         return "Product ID is required", 400
@@ -351,7 +348,7 @@ def submit_review():
     user_id = session.get("user_id")
     submitUpdateReview(user_id, product_id, title, description, rating, image_url)
 
-    flash("success", "Review submitted successfully") 
+    flash("success", "Review submitted successfully")
     return redirect(url_for("reviews"))
 
 
@@ -384,10 +381,11 @@ def search_reviews():
 @logged_in
 def order_list():
     user_id = session.get("user_id")
+    db_status = session.get("db_status")
     if not user_id:
         return redirect(url_for("show_login"))
 
-    user_data = userData(user_id)
+    user_data = fetchCustomerData(user_id, db, mongo_db, db_status)
     if not user_data:
         return "User data not found", 404
 
@@ -402,10 +400,11 @@ def order_list():
 @logged_in
 def search_products():
     user_id = session.get("user_id")
+    db_status = session.get("db_status")
     if not user_id:
         return redirect(url_for("show_login"))
 
-    user_data = userData(user_id)
+    user_data = fetchCustomerData(user_id, db, mongo_db, db_status)
     if not user_data:
         return "User data not found", 404
 
@@ -419,11 +418,15 @@ def search_products():
         return render_template("order_list.html", user_data=user_data)
 
 
-
 ## Cookies --->
 
 ## End of Cookies --->
 
+
+@app.route("/")
+def DB_operation():
+    session["db_status"] = "SQL"
+    return render_template("DB_operation.html")
 
 
 @app.route("/psubcategory")
@@ -442,9 +445,10 @@ def products():
     parent_category_id = request.args.get("parent_category_id")
     p_gender = request.args.get("p_gender")
     customer_id = session.get("user_id")
+    db_status = session.get("db_status")
 
     if customer_id:
-        user_data = fetchCustomerData(customer_id, db)
+        user_data = fetchCustomerData(customer_id, db, mongo_db, db_status)
         if user_data:
             # Fetch products based on category_name, parent_category_id, and gender
             products_with_categories = displayProducts(request, db)
@@ -463,15 +467,19 @@ def products():
 @is_db_initialized
 @logged_in
 def display_products(gender):
-    products = displayGenderProducts(gender, db)
+    db_status = session.get("db_status")
+    products = displayGenderProducts(gender, db, mongo_db, db_status)
     customer_id = session.get("user_id")
-
     if customer_id:
-        user_data = fetchCustomerData(customer_id, db)
+        user_data = fetchCustomerData(customer_id, db, mongo_db, db_status)
         if user_data:
             # Render the products page with the user's data
             return render_template(
-                "products.html", user_data=user_data, products=products, p_gender=gender
+                "products.html",
+                user_data=user_data,
+                products=products,
+                p_gender=gender,
+                db_status=db_status,
             )
 
 
@@ -483,25 +491,29 @@ def display_products(gender):
 @is_db_initialized
 @logged_in
 def single_product(product_id):
-    product = fetchProductData(product_id, db)
+    db_status = session.get("db_status")
+    product = fetchProductData(product_id, db, mongo_db, db_status)
     if request.method == "GET":
-        sizes = displaySingleProduct(product_id, request, db)
+        sizes = displaySingleProduct(product_id, request, db, mongo_db, db_status)
 
     elif request.method == "POST":
         # selected_size = request.form.get("size")
         # selected_quantity = request.form.get("quantity")
         # Perform actions with the selected size and quantity (e.g., add to cart)
-        # You can redirect to the cart page or perform additional logic here
-        # A MODIER PLUS TARD
         add_to_cart()
         return redirect(url_for("cart_display"))
 
     customer_id = session.get("user_id")
+    db_status = session.get("db_status")
     if customer_id:
-        user_data = fetchCustomerData(customer_id, db)
+        user_data = fetchCustomerData(customer_id, db, mongo_db, db_status)
         if user_data:
             return render_template(
-                "single-product.html", user_data=user_data, product=product, sizes=sizes
+                "single-product.html",
+                user_data=user_data,
+                product=product,
+                sizes=sizes,
+                db_status=db_status,
             )
 
 
@@ -514,11 +526,12 @@ def single_product(product_id):
 @logged_in
 def cart_display():
     customer_id = session.get("user_id")
+    db_status = session.get("db_status")
 
     if customer_id:
-        user_data = fetchCustomerData(customer_id, db)
+        user_data = fetchCustomerData(customer_id, db, mongo_db, db_status)
         if user_data:
-            cart_items = displayCartItems(customer_id, db)
+            cart_items = displayCartItems(customer_id, db, mongo_db, db_status)
 
             # Convert the query result to a list of dictionaries
             cart_items_quantity_price = [
@@ -549,9 +562,10 @@ def cart_display():
 @is_db_initialized
 @logged_in
 def add_to_cart():
+    db_status = session.get("db_status")
     customer_id = session.get("user_id")
     try:
-        addToCart(customer_id, request, db)
+        addToCart(customer_id, request, db, mongo_db, db_status)
         return jsonify({"message": "Item added to the cart successfully!"}), 200
 
     except IntegrityError:
@@ -579,9 +593,10 @@ def add_to_cart():
 @is_db_initialized
 def popular_products():
     customer_id = session.get("user_id")
+    db_status = session.get("db_status")
 
     if customer_id:
-        customer_data = fetchCustomerData(customer_id, db)
+        customer_data = fetchCustomerData(customer_id, db, mongo_db, db_status)
         popular_products = displayPopularProducts(db)
 
         return render_template(
@@ -621,6 +636,85 @@ def db_migrate():
         flash("You already migrated to NoSQL.", "info")
         return redirect(url_for("db_migration"))
 
+
+
+@app.route("/db_migrate", methods=['GET', 'POST'])
+@is_db_initialized
+@logged_in
+def db_migrate():
+    user_id = session.get("user_id")
+    if not user_id:
+        flash("User not logged in.", "danger")
+        return redirect(url_for("login"))
+
+    user_data = userData(user_id)
+    if not user_data:
+        # Handle the absence of user data, but continue with migration
+        flash("Proceeding with migration without specific user data.", "info")
+
+    if session.get("db_status") == "SQL":
+        # Proceed with migration
+        migrate_all_data(db, mongo_db)
+        emptyDatabase(app, db)
+
+        app.config["DB_MIGRATION_STATUS"] = "NoSQL"
+        session["db_status"] = "NoSQL"
+        flash("Migration to NoSQL completed.", "success")
+        return redirect(url_for("index"))
+    else:
+        flash("You already migrated to NoSQL.", "info")
+        return redirect(url_for("db_migration"))
+
+
+
+@app.route("/db_migration")
+def db_migration():
+    customer_id = session.get("user_id")
+    db_status = session.get("db_status")
+    if customer_id:
+        customer_data = fetchCustomerData(customer_id, db, mongo_db, db_status)
+
+        return render_template("db_migration.html", user_data=customer_data)
+
+
+@app.route("/db_migrate")
+def db_migrate():
+    if session.get("db_status") == "SQL":
+        # migrate from sqlite to mongodb:
+        customer_id = session.get("user_id")
+
+        migrate_all_data(db, mongo_db)
+        empty_tables(app, db)
+        db_status = "NoSQL"
+        session["db_status"] = "NoSQL"
+        session["user_id"] = customer_id
+        customer_data = fetchCustomerData(customer_id, db, mongo_db, db_status)
+
+        # print(customer_id)
+        # print(type(customer_data))
+        # print("######")
+        # print(customer_data)
+        if customer_data:
+            # adjust migration status config:
+            app.config["DB_MIGRATION_STATUS"] = "NoSQL"
+            session["db_status"] = "NoSQL"
+            flash(message=f"Migration to NoSQL completed.", category="success")
+            return render_template(
+                "index.html",
+                user_data=customer_data,
+                # top_male_products=top_male_products,
+                # top_female_products=top_female_products,
+                # top_kids_products=top_kids_products,
+                # category="success",
+            )
+            # return redirect(url_for("index"))
+
+        else:
+            return "User data not found!!", 404
+
+    else:
+        flash(message="You already migrated to NoSQL.", category="info")
+        return redirect(url_for("db_migration"))
 
 
 if __name__ == "__main__":

@@ -56,14 +56,21 @@
                             </div>
                             <div class="right-content">
                                 <div class="select-size">
-
                                     <select class="form-control" id="size" name="size">
                                         {% for size in sizes %}
+                                        {% if db_status == "SQL" %}
                                         <option value="{{ size.name }}" data-max-quantity="{{ size.quantity }}">{{
                                             size.name }}
                                         </option>
+                                        {% else %}
+                                        <option value="{{ size.size_name }}" data-max-quantity="{{ size.quantity }}">{{
+                                            size.size_name }}
+                                        </option>
+                                        {% endif %}
                                         {% endfor %}
                                     </select>
+
+
                                 </div>
                             </div>
                         </div>
@@ -200,7 +207,14 @@
 
         // Get the selected values from your frontend form
         var customer_id = parseInt('{{ user_data.customer_id }}'); // the current customer
+        if (isNaN(customer_id)) {
+            product_id = parseInt('{{ user_data._id }}');
+        }
+
         var product_id = parseInt('{{ product.p_id }}');  // the current product
+        if (isNaN(product_id)) {
+            product_id = parseInt('{{ product._id }}');
+        }
         var selectedSize = $('#size').val(); // we after will need to find its ID from SizeTable
         var selectedQuantity = parseInt($('input[name="quantity"]').val(), 10);  // Replace with the actual quantity selected by the customer
 
