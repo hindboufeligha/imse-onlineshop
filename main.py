@@ -465,12 +465,18 @@ def cart_display():
                 for item in cart_items
             ]
 
+            total_cost = 0
+            for item in cart_items_quantity_price:
+                item["total_price"] = item["quantity"] * item["p_price"]
+                total_cost += item["total_price"]
+
             # Render the products page with the user's data and cart_items:
             return render_template(
                 "cart.html",
                 user_data=user_data,
                 cart_items=cart_items,
                 items=cart_items_quantity_price,
+                total_cost = total_cost,
             )
 
 

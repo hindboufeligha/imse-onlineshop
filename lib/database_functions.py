@@ -251,6 +251,7 @@ def get_next_cart_item_id(mongo_db):
     return next_id
 
 
+# DONE
 def addToCart(customer_id, request, db, mongo_db, db_status):
     product_id = request.json["product_id"]
     # print(product_id)
@@ -407,6 +408,7 @@ def displayCartItems(customer_id, db, mongo_db, db_status):
         cart = mongo_db.cart.find_one({"customer_id": customer_id, "status": "Active"})
         if cart:
             cart_items = cart.get("cart_items", [])
+            # will contain, the size, quantity and product_id but you need also to display the product name and price
             return cart_items
             # return jsonify({"cart_items": cart_items})
 
