@@ -111,6 +111,7 @@
             <tr>
                 <th>Category ID</th>
                 <th>Product ID</th>
+
                 <th>Product Name</th>
                 <th>Total Quantity</th>
                 <!--<th>Cart Item Count</th>-->
@@ -122,7 +123,8 @@
             <tr>
                 <td>{{ product.category_id }}</td>
                 <td>{{ product.product_id}}</td>
-                <td>{{ product.product_name }}</td>
+                <td><a href="{{ url_for('single_product', product_id=product.product_id) }}">{{
+                        product.product_name}}</a></td>
                 <td>{{ product.total_quantity }}</td>
                 <!--<td>{{ product.cart_item_count }}</td>-->
                 <td>{{ product.customer_count}}</td>

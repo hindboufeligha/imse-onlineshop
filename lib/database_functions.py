@@ -27,6 +27,7 @@ from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.sql import func, desc, select, text
 from lib.init_database_functions import *
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
 from sqlalchemy.orm.exc import FlushError
 from sqlalchemy import func, desc
 from datetime import datetime, timedelta
@@ -558,6 +559,11 @@ def displayPopularProducts(db, mongo_db, db_status):  # user_id is stored in the
     # if tables:
 
     if db_status == "SQL":
+        product_alias = aliased(ProductTable)
+        cart_item_alias = aliased(CartItemTable)
+        cart_alias = aliased(CartTable)
+        # Construct a CTE with the row number
+        new_session = Session()
         subquery = (
             db.session.query(
                 ProductTable.category_id,
@@ -579,8 +585,10 @@ def displayPopularProducts(db, mongo_db, db_status):  # user_id is stored in the
             .join(CartTable, CartItemTable.cart_id == CartTable.cart_id)
             .filter(CartTable.creation_date >= six_months_ago)
             .group_by(ProductTable.category_id, ProductTable.p_id)
-        ).subquery()
+            .cte()
+        )
 
+        # Use the CTE in the outer query to select top-ranked rows
         popular_products_query = (
             db.session.query(
                 subquery.c.category_id,
@@ -592,9 +600,11 @@ def displayPopularProducts(db, mongo_db, db_status):  # user_id is stored in the
                 subquery.c.cart_item_count,
                 subquery.c.customer_count,
             )
-            .filter(text("rank == 1"))
+            .filter(text("rank = 1"))
             .all()
         )
+
+        new_session.close()
         # Process the results as needed, e.g., return them as JSON
         result_data = [
             {
@@ -607,7 +617,16 @@ def displayPopularProducts(db, mongo_db, db_status):  # user_id is stored in the
                 "cart_item_count": cart_item_count,
                 "customer_count": customer_count,
             }
-            for category_id, product_id, product_name, product_image_url, product_price, total_quantity, cart_item_count, customer_count in popular_products_query
+            for (
+                category_id,
+                product_id,
+                product_name,
+                product_image_url,
+                product_price,
+                total_quantity,
+                cart_item_count,
+                customer_count,
+            ) in popular_products_query
         ]
 
         print(result_data)
