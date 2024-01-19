@@ -162,7 +162,6 @@ def signup():
     return redirect(url_for("show_login"))
 
 
-
 @app.route("/index")
 @is_db_initialized
 def index():
@@ -214,8 +213,6 @@ def reviews():
         return redirect(url_for("show_login"))
 
 
-
-
 @app.route("/delete_review/<int:review_id>", methods=["POST"])
 @is_db_initialized
 def delete_review(review_id):
@@ -223,7 +220,6 @@ def delete_review(review_id):
     # Ensure that db and mongo_db are available here
     result, message = deleteUserReview(db, mongo_db, db_status, review_id)
     return jsonify({"message": message}), result
-
 
 
 @app.route("/add-review/<int:product_id>", methods=["GET", "POST"])
@@ -251,14 +247,23 @@ def add_review(product_id):
         rating = float(request.form.get("rating"))
 
         # Correctly pass all required arguments to getCreateReview
-        getCreateReview(db, mongo_db, db_status, user_id, product_id, title, description, rating)
+        getCreateReview(
+            db, mongo_db, db_status, user_id, product_id, title, description, rating
+        )
         flash("Review saved successfully", "success")
         return redirect(url_for("reviews"))
 
     # Correctly pass all required arguments to getCreateReview for getting an existing review
-    existing_review = getCreateReview(db, mongo_db, db_status, user_id, product_id, get_only=True)
-    return render_template("add-review.html", user_data=user_data, product=product, review=existing_review, product_id=product_id)
-
+    existing_review = getCreateReview(
+        db, mongo_db, db_status, user_id, product_id, get_only=True
+    )
+    return render_template(
+        "add-review.html",
+        user_data=user_data,
+        product=product,
+        review=existing_review,
+        product_id=product_id,
+    )
 
 
 @app.route("/submit_review", methods=["POST"])
@@ -266,7 +271,7 @@ def add_review(product_id):
 def submit_review():
     user_id = session.get("user_id")
     db_status = session.get("db_status")
-    
+
     if not user_id:
         flash("Please log in to submit a review.", "error")
         return redirect(url_for("show_login"))
@@ -310,11 +315,20 @@ def submit_review():
         image_url = url_for("static", filename=f"uploads/reviews/{filename}")
 
     # Ensure that db and mongo_db are available here
-    submitUpdateReview(db, mongo_db, db_status, user_id, product_id, title, description, rating, image_url)
+    submitUpdateReview(
+        db,
+        mongo_db,
+        db_status,
+        user_id,
+        product_id,
+        title,
+        description,
+        rating,
+        image_url,
+    )
 
     flash("success", "Review submitted successfully")
     return redirect(url_for("reviews"))
-
 
 
 @app.route("/search_reviews", methods=["POST"])
@@ -345,11 +359,9 @@ def search_reviews():
         "reviews.html",
         user_id=user_id,
         username=user_data_dict.get("username"),
-        reviews=matched_reviews
+        reviews=matched_reviews,
     )
 
-
-     
 
 @app.route("/order_list")
 @is_db_initialized
@@ -368,7 +380,6 @@ def order_list():
     return render_template(
         "order_list.html", user_data=user_data, products=associated_products
     )
-
 
 
 @app.route("/search_products", methods=["GET", "POST"])
@@ -394,7 +405,6 @@ def search_products():
         )
     else:
         return render_template("order_list.html", user_data=user_data)
-
 
 
 ## Cookies --->
@@ -670,6 +680,7 @@ def db_migrate():
 if __name__ == "__main__":
     with app.app_context():
         db.create_all()
+    app.run(host="0.0.0.0", port=5003, debug=True)
     app.run(host="0.0.0.0", port=5003, debug=True)
 
 
