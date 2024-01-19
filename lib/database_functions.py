@@ -59,6 +59,24 @@ def convert_to_serializable(obj):
     return obj
 
 
+
+def serialize_customer(customer):
+    """
+    Takes a CustomerTable object and returns a dictionary
+    with all the fields that need to be serialized.
+    """
+    return {
+        "customer_id": customer.customer_id,
+        "firstname": customer.firstname,
+        "familyname": customer.familyname,
+        "email": customer.email,
+        "phone_no": customer.phone_no,
+        "username": customer.username,
+        # ... include other fields as necessary
+    }
+
+
+
 def check_for_tables(db):
     with current_app.app_context():
         meta = db.metadata
@@ -108,132 +126,304 @@ def add_customer(firstname, familyname, email, phone_no, username, password):
     db.session.commit()
 
 
-def TopProducts(gender):
-    six_months_ago = datetime.utcnow() - timedelta(days=180)
-    avg_ratings = (
-        db.session.query(
-            ReviewTable.product_id,
-            func.avg(ReviewTable.rating).label("average_rating"),
+
+
+
+def TopProducts(db, mongo_db, db_status, gender):
+    if db_status == "SQL":
+        # SQL database logic (existing logic)
+        six_months_ago = datetime.utcnow() - timedelta(days=180)
+        avg_ratings = (
+            db.session.query(
+                ReviewTable.product_id,
+                func.avg(ReviewTable.rating).label("average_rating"),
+            )
+            .filter(ReviewTable.post_date >= six_months_ago)
+            .group_by(ReviewTable.product_id)
+            .subquery()
         )
-        .filter(ReviewTable.post_date >= six_months_ago)
-        .group_by(ReviewTable.product_id)
-        .subquery()
-    )
 
-    return (
-        db.session.query(ProductTable, avg_ratings.c.average_rating)
-        .join(avg_ratings, ProductTable.p_id == avg_ratings.c.product_id)
-        .filter(ProductTable.p_gender == gender)
-        .order_by(avg_ratings.c.average_rating.desc())
-        .limit(5)
-        .all()
-    )
+        return (
+            db.session.query(ProductTable, avg_ratings.c.average_rating)
+            .join(avg_ratings, ProductTable.p_id == avg_ratings.c.product_id)
+            .filter(ProductTable.p_gender == gender)
+            .order_by(avg_ratings.c.average_rating.desc())
+            .limit(5)
+            .all()
+        )
+
+    elif db_status == "NoSQL":
+        # MongoDB logic
+        six_months_ago = datetime.utcnow() - timedelta(days=180)
+
+        # MongoDB aggregation pipeline
+        pipeline = [
+        {"$match": {"post_date": {"$gte": six_months_ago}}},
+        {"$group": {
+            "_id": "$product_id",
+            "average_rating": {"$avg": "$rating"}
+        }},
+        {"$sort": {"average_rating": -1}},
+        {"$limit": 5},
+        {"$lookup": {
+            "from": "products",
+            "localField": "_id",
+            "foreignField": "_id",
+            "as": "product_details"
+        }},
+        {"$unwind": "$product_details"},
+        {"$match": {"product_details.p_gender": gender}},
+        {"$project": {
+            "product_id": "$_id",
+            "average_rating": 1,
+            "product_name": "$product_details.p_name",
+            "product_price": "$product_details.p_price",
+            "product_image_url": "$product_details.p_image_url"
+        }}
+    ]
+
+    return list(mongo_db.reviews.aggregate(pipeline))
 
 
-def userReviews(user_id):
-    user_data = CustomerTable.query.filter_by(customer_id=user_id).first()
 
-    if user_data:
-        user_reviews = ReviewTable.query.filter_by(customer_id=user_id).all()
-    else:
-        user_reviews = None
+def userReviews(db, mongo_db, db_status, user_id):
+    formatted_reviews = []
+    if db_status == "SQL":
+        user_data = CustomerTable.query.filter_by(customer_id=user_id).first()
+        user_reviews = ReviewTable.query.filter_by(customer_id=user_id).all() if user_data else []
 
-    return user_reviews, user_data
+    elif db_status == "NoSQL":
+        # Convert user_id to string if it's not already a string
+        user_id_str = str(user_id)
+        user_data = mongo_db.customers.find_one({"_id": user_id_str})
+        user_reviews = list(mongo_db.reviews.find({"customer_id": user_id_str})) if user_data else []
+
+    for review in user_reviews:
+        if db_status == "SQL":
+            # Format review data from SQL
+            formatted_review = {
+                'title': review.title,
+                'description': review.description,
+                'rating': review.rating,
+                'post_date': review.post_date.strftime("%Y-%m-%d %H:%M:%S") if review.post_date else None,
+                'image_url': review.image_url,
+                'ReviewID': review.ReviewID,
+                'product_id': review.product_id
+            }
+        else:
+            # Format review data from MongoDB
+            # Assuming that product_id is stored directly in the review document
+            formatted_review = {
+                'title': review.get('title'),
+                'description': review.get('description'),
+                'rating': review.get('rating'),
+                'post_date': review.get('post_date').strftime("%Y-%m-%d %H:%M:%S") if review.get('post_date') else None,
+                'image_url': review.get('image_url'),
+                'ReviewID': str(review.get('_id')),  # Convert ObjectId to string
+                'product_id': str(review.get('product_id'))  # Convert ObjectId to string
+            }
+        formatted_reviews.append(formatted_review)
+
+    # Convert user_data to a dictionary if it's not None
+    user_data_dict = user_data if user_data else None
+    return formatted_reviews, user_data_dict
 
 
-def searchReviews(search_query):
-    return ReviewTable.query.filter(ReviewTable.title.like(f"%{search_query}%")).all()
 
 
-def deleteUserReview(review_id):
-    review = ReviewTable.query.get(review_id)
-    if review:
-        db.session.delete(review)
+def searchReviews(db, mongo_db, db_status, search_query):
+    if db_status == "SQL":
+        # SQL database logic
+        return ReviewTable.query.filter(ReviewTable.title.like(f"%{search_query}%")).all()
+
+    elif db_status == "NoSQL":
+        # MongoDB logic
+        return list(mongo_db.reviews.find({"title": {"$regex": search_query, "$options": "i"}}))
+
+
+
+def deleteUserReview(db, mongo_db, db_status, review_id):
+    if db_status == "SQL":
+        # SQL database logic
+        review = ReviewTable.query.get(review_id)
+        if review:
+            db.session.delete(review)
+            db.session.commit()
+            return 200, "Review deleted successfully"
+        else:
+            return 404, "Review not found"
+
+    elif db_status == "NoSQL":
+        # MongoDB logic
+        result = mongo_db.reviews.delete_one({"_id": review_id})
+        if result.deleted_count > 0:
+            return 200, "Review deleted successfully"
+        else:
+            return 404, "Review not found"
+
+
+def userData(db, mongo_db, db_status, user_id):
+    if db_status == "SQL":
+        # SQL database logic
+        return CustomerTable.query.filter_by(customer_id=user_id).first()
+
+    elif db_status == "NoSQL":
+        # MongoDB logic
+        return mongo_db.customers.find_one({"_id": user_id})
+
+
+def getProduct(db, mongo_db, db_status, product_id):
+    if db_status == "SQL":
+        # SQL database logic
+        return ProductTable.query.get(product_id)
+
+    elif db_status == "NoSQL":
+        # MongoDB logic
+        return mongo_db.products.find_one({"_id": product_id})
+
+
+def getCreateReview(db, mongo_db, db_status, user_id, product_id, title=None, description=None, rating=None, get_only=False):
+    if db_status == "SQL":
+        # SQL database logic
+        review = ReviewTable.query.filter_by(customer_id=user_id, product_id=product_id).first()
+        if get_only:
+            return review
+
+        if review:
+            review.title = title
+            review.description = description
+            review.rating = rating
+            review.post_date = datetime.utcnow()
+        else:
+            new_review = ReviewTable(
+                title=title,
+                description=description,
+                rating=rating,
+                post_date=datetime.utcnow(),
+                customer_id=user_id,
+                product_id=product_id,
+            )
+            db.session.add(new_review)
+
         db.session.commit()
-        return 200, "Review deleted successfully"
-    else:
-        return 404, "Review not found"
+
+    elif db_status == "NoSQL":
+        # MongoDB logic
+        review = mongo_db.reviews.find_one({"customer_id": user_id, "product_id": product_id})
+        if get_only:
+            return review
+
+        if review:
+            mongo_db.reviews.update_one(
+                {"_id": review['_id']},
+                {"$set": {
+                    "title": title,
+                    "description": description,
+                    "rating": rating,
+                    "post_date": datetime.utcnow()
+                }}
+            )
+        else:
+            new_review = {
+                "title": title,
+                "description": description,
+                "rating": rating,
+                "post_date": datetime.utcnow(),
+                "customer_id": user_id,
+                "product_id": product_id
+            }
+            mongo_db.reviews.insert_one(new_review)
 
 
-def userData(user_id):
-    return CustomerTable.query.filter_by(customer_id=user_id).first()
+def submitUpdateReview(db, mongo_db, db_status, user_id, product_id, title, description, rating, image_url):
+    if db_status == "SQL":
+        # SQL database logic
+        existing_review = ReviewTable.query.filter_by(
+            customer_id=user_id, product_id=product_id
+        ).first()
+
+        if existing_review:
+            # Update the existing review
+            existing_review.title = title
+            existing_review.description = description
+            existing_review.rating = rating
+            existing_review.image_url = image_url
+        else:
+            # Create a new review
+            new_review = ReviewTable(
+                title=title,
+                description=description,
+                rating=rating,
+                image_url=image_url,
+                customer_id=user_id,
+                product_id=product_id,
+            )
+            db.session.add(new_review)
+
+        db.session.commit()
+
+    elif db_status == "NoSQL":
+        # MongoDB logic
+        existing_review = mongo_db.reviews.find_one({
+            "customer_id": user_id, 
+            "product_id": product_id
+        })
+
+        if existing_review:
+            # Update the existing review
+            mongo_db.reviews.update_one(
+                {"_id": existing_review['_id']},
+                {"$set": {
+                    "title": title,
+                    "description": description,
+                    "rating": rating,
+                    "image_url": image_url
+                }}
+            )
+        else:
+            # Create a new review
+            new_review = {
+                "title": title,
+                "description": description,
+                "rating": rating,
+                "image_url": image_url,
+                "customer_id": user_id,
+                "product_id": product_id,
+                "post_date": datetime.utcnow()
+            }
+            mongo_db.reviews.insert_one(new_review)
 
 
-def getProduct(product_id):
-    return ProductTable.query.get(product_id)
 
-
-def getCreateReview(
-    user_id, product_id, title=None, description=None, rating=None, get_only=False
-):
-    review = ReviewTable.query.filter_by(
-        customer_id=user_id, product_id=product_id
-    ).first()
-    if get_only:
-        return review
-
-    if review:
-        review.title = title
-        review.description = description
-        review.rating = rating
-        review.post_date = datetime.utcnow()
-    else:
-        new_review = ReviewTable(
-            title=title,
-            description=description,
-            rating=rating,
-            post_date=datetime.utcnow(),
-            customer_id=user_id,
-            product_id=product_id,
+def associatedProducts(db, mongo_db, db_status, user_id):
+    if db_status == "SQL":
+        # SQL database logic
+        associated_product_ids = (
+            db.session.query(customer_product_association.c.productID)
+            .filter(customer_product_association.c.customerID == user_id)
+            .all()
         )
-        db.session.add(new_review)
+        product_ids = [pid[0] for pid in associated_product_ids]
+        return ProductTable.query.filter(ProductTable.p_id.in_(product_ids)).all()
 
-    db.session.commit()
-
-
-def submitUpdateReview(user_id, product_id, title, description, rating, image_url):
-    existing_review = ReviewTable.query.filter_by(
-        customer_id=user_id, product_id=product_id
-    ).first()
-
-    if existing_review:
-        # Update the existing review
-        existing_review.title = title
-        existing_review.description = description
-        existing_review.rating = rating
-        existing_review.image_url = image_url
-    else:
-        # Create a new review
-        new_review = ReviewTable(
-            title=title,
-            description=description,
-            rating=rating,
-            image_url=image_url,
-            customer_id=user_id,
-            product_id=product_id,
-        )
-        db.session.add(new_review)
-
-    db.session.commit()
+    elif db_status == "NoSQL":
+        # MongoDB logic
+        associated_products = mongo_db.customer_product_association.find({"customerID": user_id})
+        product_ids = [ap['productID'] for ap in associated_products]
+        return list(mongo_db.products.find({"_id": {"$in": product_ids}}))
 
 
-def associatedProducts(user_id):
-    # Query to find product IDs associated with the user
-    associated_product_ids = (
-        db.session.query(customer_product_association.c.productID)
-        .filter(customer_product_association.c.customerID == user_id)
-        .all()
-    )
 
-    # Fetch the products using the retrieved product IDs
-    product_ids = [pid[0] for pid in associated_product_ids]
-    return ProductTable.query.filter(ProductTable.p_id.in_(product_ids)).all()
+def searchProducts(db, mongo_db, db_status, search_query):
+    if db_status == "SQL":
+        # SQL database logic
+        return ProductTable.query.filter(ProductTable.p_name.like(f"%{search_query}%")).all()
+
+    elif db_status == "NoSQL":
+        # MongoDB logic
+        return list(mongo_db.products.find({"p_name": {"$regex": search_query, "$options": "i"}}))
 
 
-def searchProducts(search_query):
-    return ProductTable.query.filter(
-        ProductTable.p_name.like(f"%{search_query}%")
-    ).all()
 
 
 # DONE

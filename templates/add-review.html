@@ -1,7 +1,6 @@
 {% include 'includes/header.html' %}
 
 </br></br></br></br>
-<!-- ***** Subscribe Area Starts ***** -->
 
 <div class="container">
     <div class="row">
@@ -15,6 +14,11 @@
                         <h5>Rate:</h5>
                         <div class='starrr' id='star1'></div>
                         <div>&nbsp;
+                            {% for message, category in get_flashed_messages(with_categories=true) %}
+                                <div class="alert alert-{{ category }}">
+                                    {{ message }}
+                                </div>
+                            {% endfor %}
                             <span class='your-choice-was' style='display: none;'>
                                 Your rating is <span class='choice'></span>.
                             </span>
@@ -34,15 +38,15 @@
                                <div class="col-lg-5">
                                 <fieldset > 
                                     <label for="photo" class="file-upload-label"> <img src="../assets/images/plus.png" width="100px" hight="100px" > </label>
-                                    <input type="file" id="photo" name="image" accept="image/*, video/*" class="form-control-file">
+                                    <input type="file" id="photo" name="image" accept="image/*, video/*" class="form-control-file" required>
 
                                 </fieldset>
                                     <fieldset > 
-                                        <input type="hidden" id="hiddenRating" name="rating" placeholder="Rating (1-5)" required min="1" max="5" step="0.1" value="">
+                                        <input type="hidden" id="hiddenRating" name="rating" placeholder="Rating (1-5)" required min="1" max="5" step="0.1" value="" required>
                                     <p id="title"> Add Title: </p>
-                                    <input type="text" id="headline" name="title" placeholder="Your headline here..." class="form-control" style="width:230px;" value="{{ review.title if review else '' }}">
+                                    <input type="text" id="headline" name="title" placeholder="Your headline here..." class="form-control" style="width:230px;" value="{{ review.title if review else '' }}" required>
                                     </br>
-                                    <textarea id="message" name="description" rows="4" cols="50" placeholder="Your message ..." >{{ review.description if review else '' }}</textarea>
+                                    <textarea id="message" name="description" rows="4" cols="50" placeholder="Your message ..."  required>{{ review.description if review else '' }}</textarea>
                                     </fieldset>
                                 </div>
 

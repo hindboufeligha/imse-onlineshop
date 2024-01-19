@@ -162,6 +162,9 @@ def signup():
     return redirect(url_for("show_login"))
 
 
+
+
+
 @app.route("/index")
 @is_db_initialized
 def index():
@@ -169,12 +172,10 @@ def index():
     db_status = session.get("db_status")
     if user_id:
         user_data = fetchCustomerData(user_id, db, mongo_db, db_status)
-        print(type(user_data))
-        print(user_data)
         if user_data:
-            top_male_products = TopProducts("Male")
-            top_female_products = TopProducts("Female")
-            top_kids_products = TopProducts("Children")
+            top_male_products = TopProducts(db, mongo_db, db_status, "Male")
+            top_female_products = TopProducts(db, mongo_db, db_status, "Female")
+            top_kids_products = TopProducts(db, mongo_db, db_status, "Children")
 
             return render_template(
                 "index.html",
@@ -190,30 +191,37 @@ def index():
         return redirect(url_for("show_login"))
 
 
-# organized review codes
+
 @app.route("/my_reviews")
 @is_db_initialized
 def reviews():
     user_id = session.get("user_id")
     db_status = session.get("db_status")
     if user_id:
-        user_reviews = userReviews(user_id)
-        user_data = fetchCustomerData(user_id, db, mongo_db, db_status)
+        user_reviews, user_data = userReviews(db, mongo_db, db_status, user_id)
         if not user_data:
             return "User data not found", 404
 
-        return render_template(
-            "reviews.html", reviews=user_reviews, user_data=user_data
-        )
+        if db_status == "SQL" and user_data:
+            user_data_dict = serialize_customer(user_data)
+        else:
+            user_data_dict = user_data
+
+        return render_template("reviews.html", reviews=user_reviews, user_data=user_data_dict)
     else:
         return redirect(url_for("show_login"))
+
+
 
 
 @app.route("/delete_review/<int:review_id>", methods=["POST"])
 @is_db_initialized
 def delete_review(review_id):
-    result, message = deleteUserReview(review_id)
+    db_status = session.get("db_status")
+    # Ensure that db and mongo_db are available here
+    result, message = deleteUserReview(db, mongo_db, db_status, review_id)
     return jsonify({"message": message}), result
+
 
 
 @app.route("/add-review/<int:product_id>", methods=["GET", "POST"])
@@ -224,12 +232,13 @@ def add_review(product_id):
     if not user_id:
         return redirect(url_for("show_login"))
 
+    # Ensure that db and mongo_db are correctly initialized and available here
     user_data = fetchCustomerData(user_id, db, mongo_db, db_status)
     if not user_data:
         flash("User data not found", "error")
         return redirect(url_for("index"))
 
-    product = getProduct(product_id)
+    product = getProduct(db, mongo_db, db_status, product_id)
     if not product:
         flash("Product not found", "error")
         return redirect(url_for("index"))
@@ -239,26 +248,51 @@ def add_review(product_id):
         description = request.form.get("description")
         rating = float(request.form.get("rating"))
 
-        getCreateReview(user_id, product_id, title, description, rating)
+        # Correctly pass all required arguments to getCreateReview
+        getCreateReview(db, mongo_db, db_status, user_id, product_id, title, description, rating)
         flash("Review saved successfully", "success")
         return redirect(url_for("reviews"))
 
-    existing_review = getCreateReview(user_id, product_id, get_only=True)
-    return render_template(
-        "add-review.html", user_data=user_data, product=product, review=existing_review
-    )
+    # Correctly pass all required arguments to getCreateReview for getting an existing review
+    existing_review = getCreateReview(db, mongo_db, db_status, user_id, product_id, get_only=True)
+    return render_template("add-review.html", user_data=user_data, product=product, review=existing_review, product_id=product_id)
+
 
 
 @app.route("/submit_review", methods=["POST"])
 @is_db_initialized
 def submit_review():
+    user_id = session.get("user_id")
+    db_status = session.get("db_status")
+    
+    if not user_id:
+        flash("Please log in to submit a review.", "error")
+        return redirect(url_for("show_login"))
+
     title = request.form.get("title")
     description = request.form.get("description")
-    rating = request.form.get("rating")
     product_id = request.form.get("product_id")
+    rating_str = request.form.get("rating")
+
+    # Handle missing or invalid inputs
+    if not rating_str:
+        flash("Please rate between 0 and 5 stars.", "error")
+        return redirect(url_for("add_review", product_id=product_id))
+
+    try:
+        rating = float(rating_str)
+        if rating < 0 or rating > 5:
+            raise ValueError
+    except ValueError:
+        flash("Invalid rating value. Please enter a number between 0 and 5.", "error")
+        return redirect(url_for("add_review", product_id=product_id))
 
     if not product_id:
-        return "Product ID is required", 400
+        flash("Product ID is required", "error")
+        return redirect(url_for("index"))
+
+    # Convert product_id to int if necessary
+    product_id = int(product_id)
 
     # Process image upload if available
     image = request.files.get("image")
@@ -273,35 +307,47 @@ def submit_review():
 
         image_url = url_for("static", filename=f"uploads/reviews/{filename}")
 
-    user_id = session.get("user_id")
-    submitUpdateReview(user_id, product_id, title, description, rating, image_url)
+    # Ensure that db and mongo_db are available here
+    submitUpdateReview(db, mongo_db, db_status, user_id, product_id, title, description, rating, image_url)
 
     flash("success", "Review submitted successfully")
     return redirect(url_for("reviews"))
 
 
+
 @app.route("/search_reviews", methods=["POST"])
 @is_db_initialized
 def search_reviews():
-    search_query = request.form.get("searchQueryInput", "")
+    db_status = session.get("db_status")
     user_id = session.get("user_id")
 
     if not user_id:
         return redirect(url_for("show_login"))
 
-    user_data = userData(user_id)
+    # Ensure that db and mongo_db are available here
+    user_data = userData(db, mongo_db, db_status, user_id)
+
     if not user_data:
-        return "User data not found", 404
+        # Handle case where user_data is None or undefined
+        print("User data not found")  # Log for debugging
+        flash("User data not found", "error")
+        return redirect(url_for("index"))
 
-    if request.method == "POST":
-        search_query = request.form.get("searchQueryInput", "")
-        matched_reviews = searchReviews(search_query)
-        return render_template(
-            "reviews.html", user_data=user_data, reviews=matched_reviews
-        )
-    else:
-        return render_template("order_list.html", user_data=user_data)
+    search_query = request.form.get("searchQueryInput", "")
+    matched_reviews = searchReviews(db, mongo_db, db_status, search_query)
 
+    # Convert user_data to a dictionary for safe serialization
+    user_data_dict = user_data.as_dict() if user_data else {}
+
+    return render_template(
+        "reviews.html",
+        user_id=user_id,
+        username=user_data_dict.get("username"),
+        reviews=matched_reviews
+    )
+
+
+     
 
 @app.route("/order_list")
 @is_db_initialized
@@ -311,14 +357,16 @@ def order_list():
     if not user_id:
         return redirect(url_for("show_login"))
 
+    # Ensure that db and mongo_db are correctly initialized and available here
     user_data = fetchCustomerData(user_id, db, mongo_db, db_status)
     if not user_data:
         return "User data not found", 404
 
-    associated_products = associatedProducts(user_id)
+    associated_products = associatedProducts(db, mongo_db, db_status, user_id)
     return render_template(
         "order_list.html", user_data=user_data, products=associated_products
     )
+
 
 
 @app.route("/search_products", methods=["GET", "POST"])
@@ -326,21 +374,25 @@ def order_list():
 def search_products():
     user_id = session.get("user_id")
     db_status = session.get("db_status")
+
     if not user_id:
         return redirect(url_for("show_login"))
 
+    # Ensure that db and mongo_db are available here
     user_data = fetchCustomerData(user_id, db, mongo_db, db_status)
     if not user_data:
         return "User data not found", 404
 
     if request.method == "POST":
         search_query = request.form.get("searchQueryInput", "")
-        matched_products = searchProducts(search_query)
+        # Correctly pass all required arguments to searchProducts
+        matched_products = searchProducts(db, mongo_db, db_status, search_query)
         return render_template(
             "order_list.html", user_data=user_data, products=matched_products
         )
     else:
         return render_template("order_list.html", user_data=user_data)
+
 
 
 ## Cookies --->
