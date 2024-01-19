@@ -40,6 +40,21 @@ import json
 from bson import ObjectId
 
 
+def serialize_user_data(user_data):
+    if user_data is None:
+        return {}
+    
+    return {
+        "customer_id": user_data.customer_id,
+        "firstname": user_data.firstname,
+        "familyname": user_data.familyname,
+        "email": user_data.email,
+        "phone_no": user_data.phone_no,
+        "username": user_data.username,
+        # Add other fields as needed
+    }
+
+
 def convert_to_serializable(obj):
     # Convert non-serializable types to a serializable format:
     if isinstance(obj, ObjectId):
@@ -128,106 +143,178 @@ def add_customer(firstname, familyname, email, phone_no, username, password):
 
 
 
+def displayTopRatedProducts(db, mongo_db, db_status):
+    six_months_ago = datetime.utcnow() - timedelta(days=180)
 
-def TopProducts(db, mongo_db, db_status, gender):
     if db_status == "SQL":
-        # SQL database logic (existing logic)
-        six_months_ago = datetime.utcnow() - timedelta(days=180)
-        avg_ratings = (
-            db.session.query(
-                ReviewTable.product_id,
-                func.avg(ReviewTable.rating).label("average_rating"),
-            )
-            .filter(ReviewTable.post_date >= six_months_ago)
-            .group_by(ReviewTable.product_id)
-            .subquery()
-        )
+        try:
+            with Session(db.engine) as session:
+                # Updated SQL query
+                top_rated_products_query = (
+                    session.query(
+                        ProductTable.category_id,
+                        ProductTable.p_id,
+                        ProductTable.p_name,
+                        ProductTable.p_image_url,
+                        ProductTable.p_price,
+                        func.avg(ReviewTable.rating).label("avg_rating")
+                    )
+                    .join(ReviewTable, ProductTable.p_id == ReviewTable.product_id)
+                    .filter(ReviewTable.post_date >= six_months_ago)
+                    .group_by(ProductTable.category_id, ProductTable.p_id)
+                    .order_by(func.avg(ReviewTable.rating).desc())
+                    .limit(5)  # Limit to top 5 products per category
+                    .all()
+                )
 
-        return (
-            db.session.query(ProductTable, avg_ratings.c.average_rating)
-            .join(avg_ratings, ProductTable.p_id == avg_ratings.c.product_id)
-            .filter(ProductTable.p_gender == gender)
-            .order_by(avg_ratings.c.average_rating.desc())
-            .limit(5)
-            .all()
-        )
+                return [
+                    {
+                        "category_id": category_id,
+                        "product_id": product_id,
+                        "product_name": product_name,
+                        "product_image_url": product_image_url,
+                        "product_price": product_price,
+                        "average_rating": avg_rating,
+                    }
+                    for (
+                        category_id,
+                        product_id,
+                        product_name,
+                        product_image_url,
+                        product_price,
+                        avg_rating,
+                    ) in top_rated_products_query
+                ]
+        except Exception as e:
+            print(f"SQL query failed: {e}")
+            return []
 
-    elif db_status == "NoSQL":
-        # MongoDB logic
-        six_months_ago = datetime.utcnow() - timedelta(days=180)
+    else:
+        # MongoDB handling
+        try:
+            pipeline = [
+                {"$match": {"post_date": {"$gte": six_months_ago}}},
+                {"$group": {
+                    "_id": {
+                        "category_id": "$category_id",
+                        "product_id": "$product_id",
+                        "product_name": "$product_name",
+                        "product_image_url": "$product_image_url",
+                        "product_price": "$product_price"
+                    },
+                    "average_rating": {"$avg": "$rating"}
+                }},
+                {"$sort": {"average_rating": -1}},
+                {"$group": {
+                    "_id": "$_id.category_id",
+                    "top_rated_products": {
+                        "$push": {
+                            "product_info": "$_id",
+                            "average_rating": "$average_rating"
+                        }
+                    }
+                }},
+                {"$project": {
+                    "category_id": "$_id",
+                    "top_rated_products": {"$slice": ["$top_rated_products", 5]}
+                }}
+            ]
 
-        # MongoDB aggregation pipeline
-        pipeline = [
-        {"$match": {"post_date": {"$gte": six_months_ago}}},
-        {"$group": {
-            "_id": "$product_id",
-            "average_rating": {"$avg": "$rating"}
-        }},
-        {"$sort": {"average_rating": -1}},
-        {"$limit": 5},
-        {"$lookup": {
-            "from": "products",
-            "localField": "_id",
-            "foreignField": "_id",
-            "as": "product_details"
-        }},
-        {"$unwind": "$product_details"},
-        {"$match": {"product_details.p_gender": gender}},
-        {"$project": {
-            "product_id": "$_id",
-            "average_rating": 1,
-            "product_name": "$product_details.p_name",
-            "product_price": "$product_details.p_price",
-            "product_image_url": "$product_details.p_image_url"
-        }}
-    ]
+            result = list(mongo_db.reviews.aggregate(pipeline))
 
-    return list(mongo_db.reviews.aggregate(pipeline))
+            return [
+                {
+                    "category_id": data["category_id"],
+                    "products": [
+                        {
+                            "product_id": prod["product_info"]["product_id"],
+                            "product_name": prod["product_info"]["product_name"],
+                            "product_image_url": prod["product_info"]["product_image_url"],
+                            "product_price": prod["product_info"]["product_price"],
+                            "average_rating": prod["average_rating"],
+                        }
+                        for prod in data["top_rated_products"]
+                    ],
+                }
+                for data in result
+            ]
+        except Exception as e:
+            print(f"MongoDB query failed: {e}")
+            return []
+
+# Example usage:
+# db_status = "SQL"  # or "MongoDB"
+# top_rated_products = displayTopRatedProducts(db, mongo_db, db_status)
 
 
 
 def userReviews(db, mongo_db, db_status, user_id):
     formatted_reviews = []
+
     if db_status == "SQL":
-        user_data = CustomerTable.query.filter_by(customer_id=user_id).first()
-        user_reviews = ReviewTable.query.filter_by(customer_id=user_id).all() if user_data else []
-
-    elif db_status == "NoSQL":
-        # Convert user_id to string if it's not already a string
-        user_id_str = str(user_id)
-        user_data = mongo_db.customers.find_one({"_id": user_id_str})
-        user_reviews = list(mongo_db.reviews.find({"customer_id": user_id_str})) if user_data else []
-
-    for review in user_reviews:
-        if db_status == "SQL":
-            # Format review data from SQL
+        # Fetch reviews from SQL database
+        user_reviews = ReviewTable.query.filter_by(customer_id=user_id).all()
+        for review in user_reviews:
             formatted_review = {
+                'product_id': review.product_id,
                 'title': review.title,
                 'description': review.description,
                 'rating': review.rating,
                 'post_date': review.post_date.strftime("%Y-%m-%d %H:%M:%S") if review.post_date else None,
-                'image_url': review.image_url,
                 'ReviewID': review.ReviewID,
-                'product_id': review.product_id
+                'image_url': review.image_url
             }
-        else:
-            # Format review data from MongoDB
-            # Assuming that product_id is stored directly in the review document
+            formatted_reviews.append(formatted_review)
+
+    elif db_status == "NoSQL":
+        # Fetch reviews from MongoDB
+        user_reviews = mongo_db.reviews.find({"customer_id": user_id})
+        for review in user_reviews:
             formatted_review = {
+                'product_id': review.get('product_id'),
                 'title': review.get('title'),
                 'description': review.get('description'),
                 'rating': review.get('rating'),
                 'post_date': review.get('post_date').strftime("%Y-%m-%d %H:%M:%S") if review.get('post_date') else None,
-                'image_url': review.get('image_url'),
-                'ReviewID': str(review.get('_id')),  # Convert ObjectId to string
-                'product_id': str(review.get('product_id'))  # Convert ObjectId to string
+                'ReviewID': str(review.get('_id')),
+                'image_url': review.get('image_url')
             }
+            formatted_reviews.append(formatted_review)
+
+    return formatted_reviews
+
+
+
+def formatReviews(reviews, db_status):
+    formatted_reviews = []
+    
+    for review in reviews:
+        formatted_review = {
+            'title': review.title,
+            'description': review.description,
+            'rating': review.rating,
+            'post_date': review.post_date.strftime("%Y-%m-%d %H:%M:%S") if review.post_date else None,
+            'image_url': review.image_url,
+            'ReviewID': review.ReviewID,
+            'product_id': review.product_id
+        }
         formatted_reviews.append(formatted_review)
 
-    # Convert user_data to a dictionary if it's not None
-    user_data_dict = user_data if user_data else None
-    return formatted_reviews, user_data_dict
+    return formatted_reviews
 
+
+
+def convertUserDataToJson(user_data):
+    if user_data:
+        # Convert user_data to a dictionary with only the necessary fields
+        user_data_dict = {
+            "customer_id": user_data.customer_id,
+            "username": user_data.username,
+            # Add other fields as needed
+        }
+        return user_data_dict
+    else:
+        return None
 
 
 
@@ -903,34 +990,40 @@ def displayPopularProducts(db, mongo_db, db_status):  # user_id is stored in the
 
 # DONE
 def fetchCustomerData(customer_id, db, mongo_db, db_status):
-    # tables = check_for_tables(db)
-
-    # Check if there are any tables
     if db_status == "NoSQL":
-        print("We are in MongoDB.")  # CHECK
+        print("We are in MongoDB.")
         customer_data = mongo_db.customer.find_one({"_id": customer_id})
-        # customer_data = mongo_db["customer"].find_one({"_id": customer_id})
         if customer_data:
-            customer_data = convert_to_serializable(
-                customer_data
-            )  # Convert to serializabler
-            return customer_data
-
+            # Convert MongoDB document to serializable format
+            return convert_to_serializable(customer_data)
         else:
             return None
 
     else:
-        print("We are in SQL db.")  # CHECK
+        print("We are in SQL db.")
         customer_data = CustomerTable.query.filter_by(customer_id=customer_id).first()
-        customer_data = (
-            json.dumps(
-                customer_data,
-                default=lambda x: x.as_dict() if isinstance(x, CustomerTable) else None,
-            )
-            if customer_data
-            else None
-        )
-        return customer_data
+        if customer_data:
+            # Convert SQLAlchemy object to a dictionary
+            return serialize_customer(customer_data)
+        else:
+            return None
+
+def serialize_customer(customer):
+    """
+    Convert a CustomerTable object to a dictionary.
+    """
+    if customer:
+        return {
+            "customer_id": customer.customer_id,
+            "firstname": customer.firstname,
+            "familyname": customer.familyname,
+            "email": customer.email,
+            "phone_no": customer.phone_no,
+            "username": customer.username,
+            # Add other fields as necessary
+        }
+    return None
+
 
 
 # DONE

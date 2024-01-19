@@ -47,7 +47,7 @@ app.config["UPLOAD_FOLDER"] = "assets/images"
 
 app.config["DB_MIGRATION_STATUS"] = ""
 
-app.config["MONGO_URI"] = "mongodb://localhost:27017/imse_onlineshop"
+app.config["MONGO_URI"] = "mongodb://mongodb:27017/imse_onlineshop"
 mongo = PyMongo(app)
 
 reset_mongodb(mongo)
@@ -163,8 +163,6 @@ def signup():
 
 
 
-
-
 @app.route("/index")
 @is_db_initialized
 def index():
@@ -173,16 +171,9 @@ def index():
     if user_id:
         user_data = fetchCustomerData(user_id, db, mongo_db, db_status)
         if user_data:
-            top_male_products = TopProducts(db, mongo_db, db_status, "Male")
-            top_female_products = TopProducts(db, mongo_db, db_status, "Female")
-            top_kids_products = TopProducts(db, mongo_db, db_status, "Children")
-
             return render_template(
                 "index.html",
                 user_data=user_data,
-                top_male_products=top_male_products,
-                top_female_products=top_female_products,
-                top_kids_products=top_kids_products,
                 category="success",
             )
         else:
@@ -191,23 +182,34 @@ def index():
         return redirect(url_for("show_login"))
 
 
+@app.route("/toprated_products")
+@is_db_initialized
+def toprated_products():
+    
+    customer_id = session.get("user_id")
+    db_status = session.get("db_status")
+   
+    if customer_id:
+        customer_data = fetchCustomerData(customer_id, db, mongo_db, db_status)
+        toprated_products = displayTopRatedProducts(db, mongo_db, db_status)
 
+        return render_template(
+                "toprated_products.html",
+                user_data=customer_data,
+                toprated_products=toprated_products,
+            )
+    
 @app.route("/my_reviews")
 @is_db_initialized
 def reviews():
-    user_id = session.get("user_id")
+    customer_id = session.get("user_id")
     db_status = session.get("db_status")
-    if user_id:
-        user_reviews, user_data = userReviews(db, mongo_db, db_status, user_id)
-        if not user_data:
-            return "User data not found", 404
 
-        if db_status == "SQL" and user_data:
-            user_data_dict = serialize_customer(user_data)
-        else:
-            user_data_dict = user_data
-
-        return render_template("reviews.html", reviews=user_reviews, user_data=user_data_dict)
+    if customer_id:
+        user_reviews = userReviews(db, mongo_db, db_status, customer_id)
+        customer_data = fetchCustomerData(customer_id, db, mongo_db, db_status)
+        
+        return render_template("reviews.html", reviews=user_reviews, user_data=customer_data)
     else:
         return redirect(url_for("show_login"))
 
@@ -668,7 +670,7 @@ def db_migrate():
 if __name__ == "__main__":
     with app.app_context():
         db.create_all()
-    app.run(host="0.0.0.0", port=5002, debug=True)
+    app.run(host="0.0.0.0", port=5003, debug=True)
 
 
 # comment
