@@ -235,9 +235,6 @@ def searchProducts(search_query):
     ).all()
 
 
-
-
-
 # DONE
 def addToCart(customer_id, request, db, mongo_db, db_status):
     product_id = request.json["product_id"]
@@ -384,6 +381,7 @@ def addToCart(customer_id, request, db, mongo_db, db_status):
 
         # Insert the new cart item into the cart_items collection
         mongo_db.cartitem.insert_one(new_cart_item)
+
 
 # DONE
 def displayCartItems(customer_id, db, mongo_db, db_status):
@@ -553,12 +551,13 @@ def displaySingleProduct(product_id, request, db, mongo_db, db_status):
         return sizes
 
 
-def displayPopularProducts(db, mongo_db):  # user_id is stored in the session
+def displayPopularProducts(db, mongo_db, db_status):  # user_id is stored in the session
     six_months_ago = datetime.utcnow() - timedelta(days=180)
 
-    tables = check_for_tables(db)
+    # tables = check_for_tables(db)
+    # if tables:
 
-    if tables:
+    if db_status == "SQL":
         subquery = (
             db.session.query(
                 ProductTable.category_id,
@@ -611,13 +610,91 @@ def displayPopularProducts(db, mongo_db):  # user_id is stored in the session
             for category_id, product_id, product_name, product_image_url, product_price, total_quantity, cart_item_count, customer_count in popular_products_query
         ]
 
+        print(result_data)
+
         return result_data
+
     # return {'data': result_data}
+
+    else:
+        # Step 2: Aggregate cart items within the last 6 months
+
+        # Aggregation pipeline:
+        pipeline = [
+            {
+                "$lookup": {
+                    "from": "product",
+                    "localField": "product_id",
+                    "foreignField": "_id",
+                    "as": "product_info",
+                }
+            },
+            {"$unwind": "$product_info"},
+            {
+                "$lookup": {
+                    "from": "cart",
+                    "localField": "cart_id",
+                    "foreignField": "_id",
+                    "as": "cart_info",
+                }
+            },
+            {"$unwind": "$cart_info"},
+            {"$match": {"cart_info.creation_date": {"$gte": six_months_ago}}},
+            {
+                "$group": {
+                    "_id": {
+                        "category_id": "$product_info.category_id",
+                        "product_id": "$product_id",
+                        "product_name": "$product_info.p_name",
+                        "product_image_url": "$product_info.p_image_url",
+                        "product_price": "$product_info.p_price",
+                    },
+                    "total_quantity": {"$sum": "$quantity"},
+                    "unique_customers": {"$addToSet": "$cart_info.customer_id"},
+                }
+            },
+            {"$sort": {"total_quantity": -1}},
+            {
+                "$group": {
+                    "_id": "$_id.category_id",
+                    "top_popular_product": {
+                        "$first": {
+                            "category_id": "$_id.category_id",
+                            "product_id": "$_id.product_id",
+                            "product_name": "$_id.product_name",
+                            "product_image_url": "$_id.product_image_url",
+                            "product_price": "$_id.product_price",
+                            "total_quantity": "$total_quantity",
+                            "customer_count": {"$size": "$unique_customers"},
+                        }
+                    },
+                }
+            },
+            {
+                "$project": {
+                    "_id": 0,
+                    "category_id": "$top_popular_product.category_id",
+                    "product_id": "$top_popular_product.product_id",
+                    "product_name": "$top_popular_product.product_name",
+                    "product_image_url": "$top_popular_product.product_image_url",
+                    "product_price": "$top_popular_product.product_price",
+                    "total_quantity": "$top_popular_product.total_quantity",
+                    "customer_count": "$top_popular_product.customer_count",
+                }
+            },
+        ]
+
+        # Execute the aggregation pipeline
+        result = list(mongo_db.cartitem.aggregate(pipeline))
+        print(result)
+
+        # Optionally, you can further process the result based on your needs
+        return result
 
 
 # DONE
 def fetchCustomerData(customer_id, db, mongo_db, db_status):
-    tables = check_for_tables(db)
+    # tables = check_for_tables(db)
 
     # Check if there are any tables
     if db_status == "NoSQL":
@@ -669,3 +746,12 @@ def fetchProductData(product_id, db, mongo_db, db_status):
 
         else:
             return None
+
+
+from datetime import datetime, timedelta
+from bson import ObjectId
+
+
+def find_popular_products_last_6_months():
+    # Calculate the start date for the last 6 months
+    six_months_ago = datetime.utcnow() - timedelta(days=180)

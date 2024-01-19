@@ -496,7 +496,7 @@ def cart_display():
 
                     cart_items_quantity_price.append(cart_item_quantity_price)
                     total_cost = 0
-                    
+
                 for item in cart_items_quantity_price:
                         item["total_price"] = item["quantity"] * item["p_price"]
                         total_cost += item["total_price"]
@@ -553,7 +553,7 @@ def popular_products():
 
     if customer_id:
         customer_data = fetchCustomerData(customer_id, db, mongo_db, db_status)
-        popular_products = displayPopularProducts(db)
+        popular_products = displayPopularProducts(db, mongo_db, db_status)
 
         return render_template(
             "popular_products.html",
