@@ -47,7 +47,7 @@ app.config["UPLOAD_FOLDER"] = "assets/images"
 
 app.config["DB_MIGRATION_STATUS"] = ""
 
-app.config["MONGO_URI"] = "mongodb://mongodb:27017/imse_onlineshop"
+app.config["MONGO_URI"] = "mongodb://localhost:27017/imse_onlineshop"
 mongo = PyMongo(app)
 
 reset_mongodb(mongo)
@@ -184,20 +184,20 @@ def index():
 @app.route("/toprated_products")
 @is_db_initialized
 def toprated_products():
-    
     customer_id = session.get("user_id")
     db_status = session.get("db_status")
-   
+
     if customer_id:
         customer_data = fetchCustomerData(customer_id, db, mongo_db, db_status)
         toprated_products = displayTopRatedProducts(db, mongo_db, db_status)
 
         return render_template(
-                "toprated_products.html",
-                user_data=customer_data,
-                toprated_products=toprated_products,
-            )
-    
+            "toprated_products.html",
+            user_data=customer_data,
+            toprated_products=toprated_products,
+        )
+
+
 @app.route("/my_reviews")
 @is_db_initialized
 def reviews():
@@ -207,8 +207,10 @@ def reviews():
     if customer_id:
         user_reviews = userReviews(db, mongo_db, db_status, customer_id)
         customer_data = fetchCustomerData(customer_id, db, mongo_db, db_status)
-        
-        return render_template("reviews.html", reviews=user_reviews, user_data=customer_data)
+
+        return render_template(
+            "reviews.html", reviews=user_reviews, user_data=customer_data
+        )
     else:
         return redirect(url_for("show_login"))
 

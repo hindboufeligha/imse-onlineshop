@@ -43,7 +43,7 @@ from bson import ObjectId
 def serialize_user_data(user_data):
     if user_data is None:
         return {}
-    
+
     return {
         "customer_id": user_data.customer_id,
         "firstname": user_data.firstname,
@@ -74,7 +74,6 @@ def convert_to_serializable(obj):
     return obj
 
 
-
 def serialize_customer(customer):
     """
     Takes a CustomerTable object and returns a dictionary
@@ -89,7 +88,6 @@ def serialize_customer(customer):
         "username": customer.username,
         # ... include other fields as necessary
     }
-
 
 
 def check_for_tables(db):
@@ -141,8 +139,6 @@ def add_customer(firstname, familyname, email, phone_no, username, password):
     db.session.commit()
 
 
-
-
 def displayTopRatedProducts(db, mongo_db, db_status):
     six_months_ago = datetime.utcnow() - timedelta(days=180)
 
@@ -157,7 +153,7 @@ def displayTopRatedProducts(db, mongo_db, db_status):
                         ProductTable.p_name,
                         ProductTable.p_image_url,
                         ProductTable.p_price,
-                        func.avg(ReviewTable.rating).label("avg_rating")
+                        func.avg(ReviewTable.rating).label("avg_rating"),
                     )
                     .join(ReviewTable, ProductTable.p_id == ReviewTable.product_id)
                     .filter(ReviewTable.post_date >= six_months_ago)
@@ -194,30 +190,36 @@ def displayTopRatedProducts(db, mongo_db, db_status):
         try:
             pipeline = [
                 {"$match": {"post_date": {"$gte": six_months_ago}}},
-                {"$group": {
-                    "_id": {
-                        "category_id": "$category_id",
-                        "product_id": "$product_id",
-                        "product_name": "$product_name",
-                        "product_image_url": "$product_image_url",
-                        "product_price": "$product_price"
-                    },
-                    "average_rating": {"$avg": "$rating"}
-                }},
-                {"$sort": {"average_rating": -1}},
-                {"$group": {
-                    "_id": "$_id.category_id",
-                    "top_rated_products": {
-                        "$push": {
-                            "product_info": "$_id",
-                            "average_rating": "$average_rating"
-                        }
+                {
+                    "$group": {
+                        "_id": {
+                            "category_id": "$category_id",
+                            "product_id": "$product_id",
+                            "product_name": "$product_name",
+                            "product_image_url": "$product_image_url",
+                            "product_price": "$product_price",
+                        },
+                        "average_rating": {"$avg": "$rating"},
                     }
-                }},
-                {"$project": {
-                    "category_id": "$_id",
-                    "top_rated_products": {"$slice": ["$top_rated_products", 5]}
-                }}
+                },
+                {"$sort": {"average_rating": -1}},
+                {
+                    "$group": {
+                        "_id": "$_id.category_id",
+                        "top_rated_products": {
+                            "$push": {
+                                "product_info": "$_id",
+                                "average_rating": "$average_rating",
+                            }
+                        },
+                    }
+                },
+                {
+                    "$project": {
+                        "category_id": "$_id",
+                        "top_rated_products": {"$slice": ["$top_rated_products", 5]},
+                    }
+                },
             ]
 
             result = list(mongo_db.reviews.aggregate(pipeline))
@@ -229,7 +231,9 @@ def displayTopRatedProducts(db, mongo_db, db_status):
                         {
                             "product_id": prod["product_info"]["product_id"],
                             "product_name": prod["product_info"]["product_name"],
-                            "product_image_url": prod["product_info"]["product_image_url"],
+                            "product_image_url": prod["product_info"][
+                                "product_image_url"
+                            ],
                             "product_price": prod["product_info"]["product_price"],
                             "average_rating": prod["average_rating"],
                         }
@@ -242,10 +246,10 @@ def displayTopRatedProducts(db, mongo_db, db_status):
             print(f"MongoDB query failed: {e}")
             return []
 
+
 # Example usage:
 # db_status = "SQL"  # or "MongoDB"
 # top_rated_products = displayTopRatedProducts(db, mongo_db, db_status)
-
 
 
 def userReviews(db, mongo_db, db_status, user_id):
@@ -256,13 +260,15 @@ def userReviews(db, mongo_db, db_status, user_id):
         user_reviews = ReviewTable.query.filter_by(customer_id=user_id).all()
         for review in user_reviews:
             formatted_review = {
-                'product_id': review.product_id,
-                'title': review.title,
-                'description': review.description,
-                'rating': review.rating,
-                'post_date': review.post_date.strftime("%Y-%m-%d %H:%M:%S") if review.post_date else None,
-                'ReviewID': review.ReviewID,
-                'image_url': review.image_url
+                "product_id": review.product_id,
+                "title": review.title,
+                "description": review.description,
+                "rating": review.rating,
+                "post_date": review.post_date.strftime("%Y-%m-%d %H:%M:%S")
+                if review.post_date
+                else None,
+                "ReviewID": review.ReviewID,
+                "image_url": review.image_url,
             }
             formatted_reviews.append(formatted_review)
 
@@ -271,37 +277,39 @@ def userReviews(db, mongo_db, db_status, user_id):
         user_reviews = mongo_db.reviews.find({"customer_id": user_id})
         for review in user_reviews:
             formatted_review = {
-                'product_id': review.get('product_id'),
-                'title': review.get('title'),
-                'description': review.get('description'),
-                'rating': review.get('rating'),
-                'post_date': review.get('post_date').strftime("%Y-%m-%d %H:%M:%S") if review.get('post_date') else None,
-                'ReviewID': str(review.get('_id')),
-                'image_url': review.get('image_url')
+                "product_id": review.get("product_id"),
+                "title": review.get("title"),
+                "description": review.get("description"),
+                "rating": review.get("rating"),
+                "post_date": review.get("post_date").strftime("%Y-%m-%d %H:%M:%S")
+                if review.get("post_date")
+                else None,
+                "ReviewID": str(review.get("_id")),
+                "image_url": review.get("image_url"),
             }
             formatted_reviews.append(formatted_review)
 
     return formatted_reviews
 
 
-
 def formatReviews(reviews, db_status):
     formatted_reviews = []
-    
+
     for review in reviews:
         formatted_review = {
-            'title': review.title,
-            'description': review.description,
-            'rating': review.rating,
-            'post_date': review.post_date.strftime("%Y-%m-%d %H:%M:%S") if review.post_date else None,
-            'image_url': review.image_url,
-            'ReviewID': review.ReviewID,
-            'product_id': review.product_id
+            "title": review.title,
+            "description": review.description,
+            "rating": review.rating,
+            "post_date": review.post_date.strftime("%Y-%m-%d %H:%M:%S")
+            if review.post_date
+            else None,
+            "image_url": review.image_url,
+            "ReviewID": review.ReviewID,
+            "product_id": review.product_id,
         }
         formatted_reviews.append(formatted_review)
 
     return formatted_reviews
-
 
 
 def convertUserDataToJson(user_data):
@@ -317,16 +325,18 @@ def convertUserDataToJson(user_data):
         return None
 
 
-
 def searchReviews(db, mongo_db, db_status, search_query):
     if db_status == "SQL":
         # SQL database logic
-        return ReviewTable.query.filter(ReviewTable.title.like(f"%{search_query}%")).all()
+        return ReviewTable.query.filter(
+            ReviewTable.title.like(f"%{search_query}%")
+        ).all()
 
     elif db_status == "NoSQL":
         # MongoDB logic
-        return list(mongo_db.reviews.find({"title": {"$regex": search_query, "$options": "i"}}))
-
+        return list(
+            mongo_db.reviews.find({"title": {"$regex": search_query, "$options": "i"}})
+        )
 
 
 def deleteUserReview(db, mongo_db, db_status, review_id):
@@ -369,10 +379,22 @@ def getProduct(db, mongo_db, db_status, product_id):
         return mongo_db.products.find_one({"_id": product_id})
 
 
-def getCreateReview(db, mongo_db, db_status, user_id, product_id, title=None, description=None, rating=None, get_only=False):
+def getCreateReview(
+    db,
+    mongo_db,
+    db_status,
+    user_id,
+    product_id,
+    title=None,
+    description=None,
+    rating=None,
+    get_only=False,
+):
     if db_status == "SQL":
         # SQL database logic
-        review = ReviewTable.query.filter_by(customer_id=user_id, product_id=product_id).first()
+        review = ReviewTable.query.filter_by(
+            customer_id=user_id, product_id=product_id
+        ).first()
         if get_only:
             return review
 
@@ -396,19 +418,23 @@ def getCreateReview(db, mongo_db, db_status, user_id, product_id, title=None, de
 
     elif db_status == "NoSQL":
         # MongoDB logic
-        review = mongo_db.reviews.find_one({"customer_id": user_id, "product_id": product_id})
+        review = mongo_db.reviews.find_one(
+            {"customer_id": user_id, "product_id": product_id}
+        )
         if get_only:
             return review
 
         if review:
             mongo_db.reviews.update_one(
-                {"_id": review['_id']},
-                {"$set": {
-                    "title": title,
-                    "description": description,
-                    "rating": rating,
-                    "post_date": datetime.utcnow()
-                }}
+                {"_id": review["_id"]},
+                {
+                    "$set": {
+                        "title": title,
+                        "description": description,
+                        "rating": rating,
+                        "post_date": datetime.utcnow(),
+                    }
+                },
             )
         else:
             new_review = {
@@ -417,12 +443,14 @@ def getCreateReview(db, mongo_db, db_status, user_id, product_id, title=None, de
                 "rating": rating,
                 "post_date": datetime.utcnow(),
                 "customer_id": user_id,
-                "product_id": product_id
+                "product_id": product_id,
             }
             mongo_db.reviews.insert_one(new_review)
 
 
-def submitUpdateReview(db, mongo_db, db_status, user_id, product_id, title, description, rating, image_url):
+def submitUpdateReview(
+    db, mongo_db, db_status, user_id, product_id, title, description, rating, image_url
+):
     if db_status == "SQL":
         # SQL database logic
         existing_review = ReviewTable.query.filter_by(
@@ -451,21 +479,22 @@ def submitUpdateReview(db, mongo_db, db_status, user_id, product_id, title, desc
 
     elif db_status == "NoSQL":
         # MongoDB logic
-        existing_review = mongo_db.reviews.find_one({
-            "customer_id": user_id, 
-            "product_id": product_id
-        })
+        existing_review = mongo_db.reviews.find_one(
+            {"customer_id": user_id, "product_id": product_id}
+        )
 
         if existing_review:
             # Update the existing review
             mongo_db.reviews.update_one(
-                {"_id": existing_review['_id']},
-                {"$set": {
-                    "title": title,
-                    "description": description,
-                    "rating": rating,
-                    "image_url": image_url
-                }}
+                {"_id": existing_review["_id"]},
+                {
+                    "$set": {
+                        "title": title,
+                        "description": description,
+                        "rating": rating,
+                        "image_url": image_url,
+                    }
+                },
             )
         else:
             # Create a new review
@@ -476,10 +505,9 @@ def submitUpdateReview(db, mongo_db, db_status, user_id, product_id, title, desc
                 "image_url": image_url,
                 "customer_id": user_id,
                 "product_id": product_id,
-                "post_date": datetime.utcnow()
+                "post_date": datetime.utcnow(),
             }
             mongo_db.reviews.insert_one(new_review)
-
 
 
 def associatedProducts(db, mongo_db, db_status, user_id):
@@ -495,22 +523,27 @@ def associatedProducts(db, mongo_db, db_status, user_id):
 
     elif db_status == "NoSQL":
         # MongoDB logic
-        associated_products = mongo_db.customer_product_association.find({"customerID": user_id})
-        product_ids = [ap['productID'] for ap in associated_products]
+        associated_products = mongo_db.customer_product_association.find(
+            {"customerID": user_id}
+        )
+        product_ids = [ap["productID"] for ap in associated_products]
         return list(mongo_db.products.find({"_id": {"$in": product_ids}}))
-
 
 
 def searchProducts(db, mongo_db, db_status, search_query):
     if db_status == "SQL":
         # SQL database logic
-        return ProductTable.query.filter(ProductTable.p_name.like(f"%{search_query}%")).all()
+        return ProductTable.query.filter(
+            ProductTable.p_name.like(f"%{search_query}%")
+        ).all()
 
     elif db_status == "NoSQL":
         # MongoDB logic
-        return list(mongo_db.products.find({"p_name": {"$regex": search_query, "$options": "i"}}))
-
-
+        return list(
+            mongo_db.products.find(
+                {"p_name": {"$regex": search_query, "$options": "i"}}
+            )
+        )
 
 
 # DONE
@@ -839,7 +872,8 @@ def displayPopularProducts(db, mongo_db, db_status):  # user_id is stored in the
         product_alias = aliased(ProductTable)
         cart_item_alias = aliased(CartItemTable)
         cart_alias = aliased(CartTable)
-        # Construct a CTE with the row number
+
+        # Construct a CTE with the row number:
         new_session = Session()
         subquery = (
             db.session.query(
@@ -854,7 +888,7 @@ def displayPopularProducts(db, mongo_db, db_status):  # user_id is stored in the
                 func.row_number()
                 .over(
                     partition_by=ProductTable.category_id,
-                    order_by=func.count(CartItemTable.quantity).desc(),
+                    order_by=func.sum(CartItemTable.quantity).desc(),
                 )
                 .label("rank"),
             )
@@ -864,7 +898,6 @@ def displayPopularProducts(db, mongo_db, db_status):  # user_id is stored in the
             .group_by(ProductTable.category_id, ProductTable.p_id)
             .cte()
         )
-
         # Use the CTE in the outer query to select top-ranked rows
         popular_products_query = (
             db.session.query(
@@ -880,7 +913,6 @@ def displayPopularProducts(db, mongo_db, db_status):  # user_id is stored in the
             .filter(text("rank = 1"))
             .all()
         )
-
         new_session.close()
         # Process the results as needed, e.g., return them as JSON
         result_data = [
@@ -905,8 +937,6 @@ def displayPopularProducts(db, mongo_db, db_status):  # user_id is stored in the
                 customer_count,
             ) in popular_products_query
         ]
-
-        print(result_data)
 
         return result_data
 
@@ -980,11 +1010,10 @@ def displayPopularProducts(db, mongo_db, db_status):  # user_id is stored in the
             },
         ]
 
-        # Execute the aggregation pipeline
+        # Execute the aggregation pipeline:
         result = list(mongo_db.cartitem.aggregate(pipeline))
         print(result)
 
-        # Optionally, you can further process the result based on your needs
         return result
 
 
@@ -1008,6 +1037,7 @@ def fetchCustomerData(customer_id, db, mongo_db, db_status):
         else:
             return None
 
+
 def serialize_customer(customer):
     """
     Convert a CustomerTable object to a dictionary.
@@ -1020,10 +1050,8 @@ def serialize_customer(customer):
             "email": customer.email,
             "phone_no": customer.phone_no,
             "username": customer.username,
-            # Add other fields as necessary
         }
     return None
-
 
 
 # DONE
@@ -1048,12 +1076,3 @@ def fetchProductData(product_id, db, mongo_db, db_status):
 
         else:
             return None
-
-
-from datetime import datetime, timedelta
-from bson import ObjectId
-
-
-def find_popular_products_last_6_months():
-    # Calculate the start date for the last 6 months
-    six_months_ago = datetime.utcnow() - timedelta(days=180)
